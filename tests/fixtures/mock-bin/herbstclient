@@ -1,0 +1,26 @@
+#!/bin/sh
+# Mock herbstclient for herbstutil's test-suite. NEVER touches a WM.
+#
+# Appends the invocation to $HERBSTCTL_MOCK_LOG (one line per call,
+# argv elements joined with \037 and a trailing \037) and replies with
+# the FIRST matching line of $HERBSTCTL_MOCK_SCENARIO, whose lines are
+# "regex<TAB>exit<TAB>output" (grep -E matched against the space-joined
+# argv; no match -> empty output, exit 0).
+LOG="${HERBSTCTL_MOCK_LOG:?HERBSTCTL_MOCK_LOG not set}"
+SCENARIO="${HERBSTCTL_MOCK_SCENARIO:-/dev/null}"
+
+for a in "$@"; do printf '%s\037' "$a"; done >> "$LOG"
+printf '\n' >> "$LOG"
+
+argv=$(printf '%s' "$*")
+if [ -f "$SCENARIO" ]; then
+    while IFS="$(printf '\t')" read -r pat code out; do
+        [ -n "$pat" ] || continue
+        case "$pat" in \#*) continue ;; esac
+        if printf '%s' "$argv" | grep -Eq -- "$pat"; then
+            [ -n "$out" ] && printf '%s\n' "$out"
+            exit "${code:-0}"
+        fi
+    done < "$SCENARIO"
+fi
+exit 0

@@ -1,0 +1,68 @@
+{
+  "name": "herbctl",
+  "version": "0.1.0",
+  "description": "The hlwm keybind state machines — navigation, float-layer and zoom compositions as herbstctl subcommands (herbstutil stays the pure parse/attr layer).",
+  "author": "Kirill <kine> Nevzorov",
+  "email": "akinevz@outlook.com",
+  "license": "GPL-2.0-only",
+  "homepage": "https://github.com/akinevz2/herbctl",
+  "bin": {
+    "herbctl": "./src/index.ts"
+  },
+  "files": [
+    "src/",
+    "tests/",
+    "LICENSE",
+    "README.md",
+    "tsconfig.json",
+    "bunli.config.ts"
+  ],
+  "type": "module",
+  "keywords": [
+    "herbstluftwm",
+    "window-manager",
+    "tiling",
+    "linux",
+    "utility",
+    "herbstclient",
+    "cli",
+    "wm",
+    "keybinds",
+    "configuration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akinevz2/herbctl.git"
+  },
+  "bugs": {
+    "url": "https://github.com/akinevz2/herbctl/issues"
+  },
+  "scripts": {
+    "postinstall": "bunli generate",
+    "dev": "bunli dev",
+    "build": "bunli build",
+    "test": "bun test",
+    "typecheck": "tsgo --noEmit"
+  },
+  "dependencies": {
+    "@bunli/core": "latest",
+    "herbstutil": "file:../herbstutil"
+  },
+  "devDependencies": {
+    "@bunli/test": "latest",
+    "@tsconfig/bun": "1.0.10",
+    "@types/bun": "latest",
+    "bunli": "latest",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "bun": ">=1.2"
+  },
+  "trustedDependencies": [
+    "bun"
+  ],
+  "bunli": {
+    "entry": "./src/index.ts",
+    "outDir": "./dist"
+  }
+}

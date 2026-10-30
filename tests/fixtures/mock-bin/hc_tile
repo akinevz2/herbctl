@@ -1,0 +1,9 @@
+#!/bin/sh
+# Generic mock for a dots helper binary (hc_center, hc_resize, …):
+# records "$0" + argv in the same \037 format as the herbstclient mock
+# and exits 0.
+LOG="${HERBSTCTL_MOCK_LOG:?HERBSTCTL_MOCK_LOG not set}"
+printf '%s\037' "$0" >> "$LOG"
+for a in "$@"; do printf '%s\037' "$a"; done >> "$LOG"
+printf '\n' >> "$LOG"
+exit 0
