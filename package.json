@@ -7,7 +7,7 @@
   "license": "GPL-2.0-only",
   "homepage": "https://github.com/akinevz2/herbctl",
   "bin": {
-    "herbctl": "./src/index.ts"
+    "herbctl": "src/index.ts"
   },
   "files": [
     "src/",
@@ -32,7 +32,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/akinevz2/herbctl.git"
+    "url": "git+https://github.com/akinevz2/herbctl.git"
   },
   "bugs": {
     "url": "https://github.com/akinevz2/herbctl/issues"
@@ -45,8 +45,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@bunli/core": "latest",
-    "herbstutil": "file:../herbstutil"
+    "@bunli/core": "latest"
   },
   "devDependencies": {
     "@bunli/test": "latest",
