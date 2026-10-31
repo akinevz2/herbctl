@@ -1,4 +1,4 @@
-// src/commands/zoom.ts — get-zoom: the hc_zoom press machine for the
+// src/commands/zoom.ts — zoom: the hc_zoom press machine for the
 // focused window (~/dots/herbst_focus/.local/bin/hc_zoom, bound as
 // $ModCtrl-f in dots).
 //
@@ -17,10 +17,10 @@
 
 import { attrRaw, hc, helper } from "./hc.js";
 
-export async function getZoom(): Promise<boolean> {
+export async function zoomToggle(): Promise<boolean> {
     const wid = await attrRaw("clients.focus.winid");
     if (!wid) {
-        console.error("get-zoom: no focused window");
+        console.error("zoom: no focused window");
         return false;
     }
 

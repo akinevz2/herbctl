@@ -1,6 +1,6 @@
-// src/commands/focus.ts — get-focus: the hc_focus float-register
+// src/commands/float-focus.ts — float-focus: the hc_focus float-register
 // machine (~/dots/herbst_focus/.local/bin/hc_focus, the $Mod-f key —
-// distinct from get-zoom, which is hc_zoom on $ModCtrl-f):
+// distinct from zoom, which is hc_zoom on $ModCtrl-f):
 //
 //   Pre-scan the first VISIBLE float on the tag (the only candidate
 //   the floating layer can focus; a fallback for the focus read that
@@ -31,7 +31,7 @@
 
 import { attrRaw, hc, helper, listClientsByTag } from "./hc.js";
 
-export async function getFocus(): Promise<void> {
+export async function floatFocus(): Promise<void> {
     const tag = await attrRaw("tags.focus.name");
 
     // Pre-scan the first visible (non-minimized) float on the tag.

@@ -1,4 +1,4 @@
-// src/commands/extracted.ts — get-extracted: the hc_floatx
+// src/commands/float-yank.ts — float-yank: the hc_floatx
 // layer-focus toggle / yanker
 // (~/dots/herbst_focus/.local/bin/hc_floatx, bound as $Mod-x in dots),
 // all branches, faithfully:
@@ -38,7 +38,7 @@
 import { attrRaw, hc, helper, helperDir, listClientsByTag } from "./hc.js";
 import { unfloatWid } from "./imperatives.js";
 
-export async function getExtracted(): Promise<void> {
+export async function floatYank(): Promise<void> {
     await hc("lock");
     try {
         const orig = await attrRaw("clients.focus.winid");

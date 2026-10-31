@@ -7,7 +7,7 @@
 // Fail-soft (the dots wrapper convention) via the spawn layer in
 // src/lib/hc.ts — a failed call resolves null instead of throwing.
 //
-// The CLI verbs that expose these live in src/commands/get-*.ts
+// The CLI verbs that expose these live in src/commands/*.ts (one per verb)
 // (bunli command modules, one per verb).
 
 import { defineCommand } from "@bunli/core";
@@ -98,7 +98,7 @@ export async function getDedeck(): Promise<void> {
 
 /** $Mod-e (focus.sh): with >1 frame cycle backwards, else explode the
  *  frame and cycle forward. */
-export async function getExplore(): Promise<void> {
+export async function explodeFrame(): Promise<void> {
     await hc(
         "or", ".",
         "and", ",", "compare", "tags.focus.frame_count", "gt", "1", ",", "cycle_frame", "-1",
@@ -108,7 +108,7 @@ export async function getExplore(): Promise<void> {
 
 /** $Mod-a (autostart): focus the frame to the left, or split one off
  *  at a third of the width when there is nothing to focus. */
-export async function getAdvice(): Promise<void> {
+export async function focusFrameLeft(): Promise<void> {
     await hc(
         "or",
         ",", "focus", "left", "--level=frame",
@@ -116,12 +116,12 @@ export async function getAdvice(): Promise<void> {
     );
 }
 
-/** $ModShift-w (nav.sh): get-shuffle — the shift-up ladder. First
+/** $ModShift-w (nav.sh): shift-up — the shift-up ladder. First
  *  tries shifting the window up into the frame above (--level=all);
  *  when there is nothing above, with >1 window in the focused frame it
  *  cycles -1, otherwise it tries cycle_frame, then falls through to
  *  rotating the frame tree. */
-export async function getShuffle(): Promise<void> {
+export async function shiftUp(): Promise<void> {
     await hc(
         "or",
         ",", "shift", "--level=all", "up",
@@ -132,10 +132,10 @@ export async function getShuffle(): Promise<void> {
     );
 }
 
-/** $ModCtrl-r (focus.sh): get-rotate — rotate the tree (<3 frames) or
+/** $ModCtrl-r (focus.sh): rotate-tree — rotate the tree (<3 frames) or
  *  cycle frames forward; on a single frame it cycles windows in the
- *  opposite direction of get-shuffle. */
-export async function getRotate(): Promise<void> {
+ *  opposite direction of shift-up. */
+export async function rotateTree(): Promise<void> {
     await hc(
         "or",
         ",", "and", ".", "compare", "tags.focus.frame_count", "lt", "3",
@@ -147,7 +147,7 @@ export async function getRotate(): Promise<void> {
 
 /** $ModShift-b (autostart): with >1 window in the focused frame, split
  *  a bottom frame and shift the window down into it. */
-export async function getBelow(): Promise<void> {
+export async function splitDown(): Promise<void> {
     await hc(
         "or", ".",
         "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
@@ -155,11 +155,11 @@ export async function getBelow(): Promise<void> {
     );
 }
 
-/** $ModShift-s (nav.sh): get-skip — an empty focused frame is removed;
+/** $ModShift-s (nav.sh): shift-down — an empty focused frame is removed;
  *  a multi-window frame shifts the window down, splitting a bottom
  *  frame first when there is nothing below. A lone-window frame in a
  *  multi-frame tag deliberately does NOTHING (the neither-branch). */
-export async function getSkip(): Promise<void> {
+export async function shiftDown(): Promise<void> {
     await hc(
         "or",
         ",", "and", ".", "compare", "tags.focus.curframe_wcount", "=", "0",
@@ -171,10 +171,10 @@ export async function getSkip(): Promise<void> {
     );
 }
 
-/** $ModCtrl-a (autostart): get-dive — shift the window left; with
+/** $ModCtrl-a (autostart): shift-left — shift the window left; with
  *  nothing to the left focus the frame left, else split left and shift
  *  the window into the new frame. */
-export async function getDive(): Promise<void> {
+export async function shiftLeft(): Promise<void> {
     await hc(
         "or",
         ",", "shift", "left",
@@ -183,9 +183,9 @@ export async function getDive(): Promise<void> {
     );
 }
 
-/** $ModCtrl-e (autostart): get-toss — shift the window right, else
+/** $ModCtrl-e (autostart): shift-right — shift the window right, else
  *  split right and focus the new frame right. */
-export async function getToss(): Promise<void> {
+export async function shiftRight(): Promise<void> {
     await hc(
         "or",
         ",", "shift", "right",
@@ -193,13 +193,13 @@ export async function getToss(): Promise<void> {
     );
 }
 
-/** $ModShift-t (autostart): get-tuck — the FRAME LOGIC ONLY of the
+/** $ModShift-t (autostart): new-frame — the FRAME LOGIC ONLY of the
  *  open-a-second-frame binding: split auto + cycle_frame ONLY when the
  *  focused frame holds >0 windows; an empty frame stays as is (the
  *  terminal then opens into it). The `spawn $TERMINAL` half of the
  *  binding stays a dotfiles concern — the dots keybind chains this
  *  with the spawn (herbctl never spawns terminals). */
-export async function getTuck(): Promise<void> {
+export async function newFrame(): Promise<void> {
     await hc(
         "chain",
         ",", "or",
@@ -210,10 +210,10 @@ export async function getTuck(): Promise<void> {
     );
 }
 
-/** $ModShift-q (autostart): get-hold — a focused float is closed and
+/** $ModShift-q (autostart): close-or-remove — a focused float is closed and
  *  its frame removed; otherwise close_or_remove (close, and remove the
  *  frame when it is left empty). */
-export async function getHold(): Promise<void> {
+export async function closeOrRemove(): Promise<void> {
     await hc(
         "or",
         ",", "and", ".", "compare", "clients.focus.floating", "=", "true",
@@ -223,10 +223,10 @@ export async function getHold(): Promise<void> {
     );
 }
 
-/** $ModCtrl-q (autostart): get-wrench — the xkill-or-close chain: a
+/** $ModCtrl-q (autostart): xkill-or-close — the xkill-or-close chain: a
  *  focused client exists -> spawn xkill (targeted kill), else
  *  close_and_remove. */
-export async function getWrench(): Promise<void> {
+export async function xkillOrClose(): Promise<void> {
     await hc(
         "or",
         ".", "and",
@@ -236,9 +236,9 @@ export async function getWrench(): Promise<void> {
     );
 }
 
-/** $Mod-v (autostart): get-vex — split right at half and cycle into
+/** $Mod-v (autostart): split-right-cycle — split right at half and cycle into
  *  the new frame. */
-export async function getVex(): Promise<void> {
+export async function splitRightCycle(): Promise<void> {
     await hc(
         "chain",
         ",", "split", "right", "0.5",
@@ -246,9 +246,9 @@ export async function getVex(): Promise<void> {
     );
 }
 
-/** $Mod-b (autostart): get-bend — focus the frame down, else split a
+/** $Mod-b (autostart): focus-frame-down — focus the frame down, else split a
  *  bottom frame at half and cycle into it. */
-export async function getBend(): Promise<void> {
+export async function focusFrameDown(): Promise<void> {
     await hc(
         "or",
         "!", "focus", "--level=frame", "down",
@@ -256,9 +256,9 @@ export async function getBend(): Promise<void> {
     );
 }
 
-/** $ModCtrl-v (autostart): get-vexi — split right at half and focus
+/** $ModCtrl-v (autostart): split-right-focus — split right at half and focus
  *  into the new frame (-e: exploding focus). */
-export async function getVexi(): Promise<void> {
+export async function splitRightFocus(): Promise<void> {
     await hc(
         "chain",
         ",", "split", "right", "0.5",
@@ -266,9 +266,9 @@ export async function getVexi(): Promise<void> {
     );
 }
 
-/** $ModCtrl-b (autostart): get-bendi — split bottom at half and focus
+/** $ModCtrl-b (autostart): split-bottom-focus — split bottom at half and focus
  *  into the new frame (-i: insertion focus). */
-export async function getBendi(): Promise<void> {
+export async function splitBottomFocus(): Promise<void> {
     await hc(
         "chain",
         ",", "split", "bottom", "0.5",
@@ -276,11 +276,11 @@ export async function getBendi(): Promise<void> {
     );
 }
 
-/** $Mod-q (floating.sh): get-quiet — a focused float is ONLY
+/** $Mod-q (floating.sh): close-window — a focused float is ONLY
  *  un-floated; tiling windows get closed, with a lone-window frame
  *  removed afterwards (close_and_remove / close_or_remove). Under
  *  lock. */
-export async function getQuiet(): Promise<void> {
+export async function closeWindow(): Promise<void> {
     await hc(
         "chain", "!", "lock",
         "!", "or",
@@ -293,14 +293,14 @@ export async function getQuiet(): Promise<void> {
     );
 }
 
-/** $ModShift-f (floating.sh): get-hush — fullscreen toggle on the
+/** $ModShift-f (floating.sh): fullscreen-toggle — fullscreen toggle on the
  *  focused client. */
-export async function getHush(): Promise<void> {
+export async function fullscreenToggle(): Promise<void> {
     await hc("attr", "clients.focus.fullscreen", "toggle");
 }
 
-/** $ModShift-z (nav.sh): get-nap — minimized toggle on the focused
+/** $ModShift-z (nav.sh): minimize-toggle — minimized toggle on the focused
  *  client. */
-export async function getNap(): Promise<void> {
+export async function minimizeToggle(): Promise<void> {
     await hc("attr", "clients.focus.minimized", "toggle");
 }

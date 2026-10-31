@@ -7,9 +7,9 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { getZoom } from "../src/lib/zoom";
-import { getExtracted } from "../src/lib/extracted";
-import { getFocus } from "../src/lib/focus";
+import { zoomToggle } from "../src/lib/zoom";
+import { floatYank } from "../src/lib/extracted";
+import { floatFocus } from "../src/lib/focus";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
 
@@ -58,15 +58,15 @@ afterEach(() => {
     rmSync(tmp, { recursive: true, force: true });
 });
 
-// getZoom — the hc_zoom press-state machine.
-describe("getZoom (hc_zoom port)", () => {
+// zoomToggle — the hc_zoom press-state machine.
+describe("zoomToggle (hc_zoom port)", () => {
     test("(a) tiled -> flag reset + hc_center root + hc_resize frame + hc_fit_to root, under lock", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000001"],
             ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "false"],
         ]);
-        expect(await getZoom()).toBe(true);
+        expect(await zoomToggle()).toBe(true);
         expect(log()).toEqual([
             ["attr", "clients.focus.winid"],
             ["lock"],
@@ -87,7 +87,7 @@ describe("getZoom (hc_zoom port)", () => {
             ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
         ]);
-        expect(await getZoom()).toBe(true);
+        expect(await zoomToggle()).toBe(true);
         expect(log()).toEqual([
             ["attr", "clients.focus.winid"],
             ["lock"],
@@ -103,7 +103,7 @@ describe("getZoom (hc_zoom port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000001"],
             ["^attr clients\\.0x1000001\\.tag$", "0", "work-max"],
         ]);
-        expect(await getZoom()).toBe(true);
+        expect(await zoomToggle()).toBe(true);
         expect(log()).toEqual([
             ["attr", "clients.focus.winid"],
             ["lock"],
@@ -118,13 +118,13 @@ describe("getZoom (hc_zoom port)", () => {
 
     test("no focused window -> false, no lock taken (hc_zoom exits 1)", async () => {
         scenario([["^attr clients\\.focus\\.winid$", "1", ""]]);
-        expect(await getZoom()).toBe(false);
+        expect(await zoomToggle()).toBe(false);
         expect(log()).toEqual([["attr", "clients.focus.winid"]]);
     });
 });
 
-// getExtracted — the hc_floatx layer-yank state machine.
-describe("getExtracted (hc_floatx port)", () => {
+// floatYank — the hc_floatx layer-yank state machine.
+describe("floatYank (hc_floatx port)", () => {
     // The batched state read every branch starts with (chain + echo "|").
     const stateChain = () =>
         [
@@ -154,7 +154,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"], // orig
@@ -179,7 +179,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""], // re-entry fails: no floats
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -204,7 +204,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr clients\\.0x1000004\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -228,7 +228,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
             ["^attr clients\\.0x1000006\\.floating false$", "0", ""],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -255,7 +255,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -284,7 +284,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "2"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "max"],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -311,7 +311,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
             ["^attr tags\\.by-name\\.work\\.client_count$", "0", "3"],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -337,7 +337,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^chain , attr clients\\.0x1000009\\.minimized$", "0", "true"], // has_minimized
             ["^chain , attr clients\\.0x1000009\\.minimized off$", "0", ""], // the reveal
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -365,7 +365,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.by-name\\.work\\.client_count$", "0", "0"],
             ["^chain , attr clients\\.0x100000c\\.minimized$", "0", "true"],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -392,7 +392,7 @@ describe("getExtracted (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
             ["^attr tags\\.by-name\\.work\\.client_count$", "0", "0"],
         ]);
-        await getExtracted();
+        await floatYank();
         expect(log()).toEqual([
             ["lock"],
             ["attr", "clients.focus.winid"],
@@ -409,9 +409,9 @@ describe("getExtracted (hc_floatx port)", () => {
     });
 });
 
-// getFocus — the hc_focus float-register machine ($Mod-f). NO lock is
+// floatFocus — the hc_focus float-register machine ($Mod-f). NO lock is
 // ever taken (hc_focus's header: the helpers own their locks).
-describe("getFocus (hc_focus port)", () => {
+describe("floatFocus (hc_focus port)", () => {
     const UNFLOAT_CHAIN = (wid: string) => [
         "chain",
         ",", "attr", `clients.${wid}.fullscreen`, "off",
@@ -429,7 +429,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
         ]);
-        await getFocus();
+        await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"], // pre-scan
             ["list_clients", "--tag=work"],
@@ -452,7 +452,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "2"],
         ]);
-        await getFocus();
+        await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
             ["list_clients", "--tag=work"],
@@ -475,7 +475,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x2000003"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
         ]);
-        await getFocus();
+        await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
             ["list_clients", "--tag=work"],
@@ -505,7 +505,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x2000003"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
         ]);
-        await getFocus();
+        await floatFocus();
         const entries = log();
         expect(entries).not.toContainEqual(["remove"]);
         expect(entries.slice(-4)).toEqual([
@@ -525,7 +525,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "grid"],
         ]);
-        await getFocus();
+        await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
             ["list_clients", "--tag=work"],
@@ -547,7 +547,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x2000006"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
         ]);
-        await getFocus();
+        await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
             ["list_clients", "--tag=work"],
@@ -568,7 +568,7 @@ describe("getFocus (hc_focus port)", () => {
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
             ["^attr clients\\.focus\\.winid$", "1", ""],
         ]);
-        await getFocus();
+        await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
             ["list_clients", "--tag=work"],
@@ -583,11 +583,11 @@ describe("getFocus (hc_focus port)", () => {
 // names (the get-* set, no mod-* aliases in herbctl).
 describe("machine CLI verbs", () => {
     test("get-zoom / get-extracted / get-focus are registered", async () => {
-        const zoom = (await import("../src/commands/get-zoom")).default;
-        const extracted = (await import("../src/commands/get-extracted")).default;
-        const focus = (await import("../src/commands/get-focus")).default;
-        expect((zoom as { name: string }).name).toBe("get-zoom");
-        expect((extracted as { name: string }).name).toBe("get-extracted");
-        expect((focus as { name: string }).name).toBe("get-focus");
+        const zoom = (await import("../src/commands/zoom")).default;
+        const extracted = (await import("../src/commands/float-yank")).default;
+        const focus = (await import("../src/commands/float-focus")).default;
+        expect((zoom as { name: string }).name).toBe("zoom");
+        expect((extracted as { name: string }).name).toBe("float-yank");
+        expect((focus as { name: string }).name).toBe("float-focus");
     });
 });

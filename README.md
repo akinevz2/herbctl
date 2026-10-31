@@ -15,7 +15,7 @@ Early release.
 ## Usage
 
 ```bash
-herbctl get-<name>    # run one keybind state machine (table below)
+herbctl <verb>        # run one keybind state machine (table below)
 ```
 
 The dots keybinds spawn the compiled standalone binary:
@@ -32,8 +32,10 @@ the keybind.
 
 ## Commands
 
-25 verbs, one per keybind. One-line summaries here; full notes in
-the next section.
+25 verbs, one per keybind. Verbs are named by WHAT THEY DO — plain
+functional names, no whimsy (the original whimsical names were
+retired 2026-10; only the historical `get-*` quartet keeps its name).
+One-line summaries here; full notes in the next section.
 
 | verb | keybind | behavior |
 |------|---------|----------|
@@ -41,27 +43,27 @@ the next section.
 | `get-forward` | `$Mod-w` | leave floats, then cycle up |
 | `get-deck` | `$Mod-d` | count-gated cycle_layout mixes |
 | `get-dedeck` | `$ModShift-d` | layout mix, else remove frame |
-| `get-explore` | `$Mod-e` | cycle frames back / explode |
-| `get-advice` | `$Mod-a` | focus left / split left |
-| `get-shuffle` | `$ModShift-w` | shift-up ladder + fallbacks |
-| `get-rotate` | `$ModCtrl-r` | rotate tree / cycle frames |
-| `get-skip` | `$ModShift-s` | remove empty / shift down |
-| `get-below` | `$ModShift-b` | split bottom + shift down |
-| `get-dive` | `$ModCtrl-a` | shift left / focus / split |
-| `get-toss` | `$ModCtrl-e` | shift right / split right |
-| `get-tuck` | `$ModShift-t` | split auto + cycle frame |
-| `get-hold` | `$ModShift-q` | close float+frame / close |
-| `get-wrench` | `$ModCtrl-q` | xkill, else close_and_remove |
-| `get-vex` | `$Mod-v` | split right + cycle_frame |
-| `get-bend` | `$Mod-b` | focus down / split bottom |
-| `get-vexi` | `$ModCtrl-v` | split right + focus -e right |
-| `get-bendi` | `$ModCtrl-b` | split bottom + focus -i down |
-| `get-quiet` | `$Mod-q` | unfloat only / close + prune |
-| `get-hush` | `$ModShift-f` | fullscreen toggle |
-| `get-nap` | `$ModShift-z` | minimized toggle |
-| `get-zoom` | `$ModCtrl-f` | three-state press machine |
-| `get-extracted` | `$Mod-x` | layer-yank machine |
-| `get-focus` | `$Mod-f` | float-register machine |
+| `explode-frame` | `$Mod-e` | cycle frames back / explode |
+| `focus-frame-left` | `$Mod-a` | focus left / split left |
+| `shift-up` | `$ModShift-w` | shift-up ladder + fallbacks |
+| `rotate-tree` | `$ModCtrl-r` | rotate tree / cycle frames |
+| `shift-down` | `$ModShift-s` | remove empty / shift down |
+| `split-down` | `$ModShift-b` | split bottom + shift down |
+| `shift-left` | `$ModCtrl-a` | shift left / focus / split |
+| `shift-right` | `$ModCtrl-e` | shift right / split right |
+| `new-frame` | `$ModShift-t` | split auto + cycle frame |
+| `close-or-remove` | `$ModShift-q` | close float+frame / close |
+| `xkill-or-close` | `$ModCtrl-q` | xkill, else close_and_remove |
+| `split-right-cycle` | `$Mod-v` | split right + cycle_frame |
+| `focus-frame-down` | `$Mod-b` | focus down / split bottom |
+| `split-right-focus` | `$ModCtrl-v` | split right + focus -e right |
+| `split-bottom-focus` | `$ModCtrl-b` | split bottom + focus -i down |
+| `close-window` | `$Mod-q` | unfloat only / close + prune |
+| `fullscreen-toggle` | `$ModShift-f` | fullscreen toggle |
+| `minimize-toggle` | `$ModShift-z` | minimized toggle |
+| `zoom` | `$ModCtrl-f` | three-state press machine |
+| `float-yank` | `$Mod-x` | layer-yank machine |
+| `float-focus` | `$Mod-f` | float-register machine |
 
 ## Verbs in detail
 
@@ -81,63 +83,63 @@ the whole chain runs under the hlwm lock in one spawn.
 - `get-dedeck` (`$ModShift-d`, nav.sh) — with >1 window in the
   frame, mix in the max/grid/vertical layouts, else remove the
   focused frame.
-- `get-explore` (`$Mod-e`, focus.sh) — cycle frames backward, or
+- `explode-frame` (`$Mod-e`, focus.sh) — cycle frames backward, or
   `split explode` when it is the last split.
-- `get-advice` (`$Mod-a`, autostart) — `focus left
+- `focus-frame-left` (`$Mod-a`, autostart) — `focus left
   --level=frame`, or `split left 0.33333`.
-- `get-shuffle` (`$ModShift-w`, nav.sh) — the shift-up ladder:
+- `shift-up` (`$ModShift-w`, nav.sh) — the shift-up ladder:
   `shift --level=all up`, else cycle `-1` (with >1 window) /
   cycle + rotate frames.
-- `get-rotate` (`$ModCtrl-r`, focus.sh) — rotate the tree (<3
+- `rotate-tree` (`$ModCtrl-r`, focus.sh) — rotate the tree (<3
   frames) or cycle frames forward; a single frame cycles windows
-  `+1`.
-- `get-skip` (`$ModShift-s`, nav.sh) — empty focused frame ->
+  `+1` (opposite the `shift-up` fallback direction).
+- `shift-down` (`$ModShift-s`, nav.sh) — empty focused frame ->
   `remove`; multi-window frame -> `shift down`, splitting a bottom
   frame first when there is nothing below; a lone window in a
   multi-frame tag does nothing.
-- `get-below` (`$ModShift-b`, autostart) — with >1 window in the
+- `split-down` (`$ModShift-b`, autostart) — with >1 window in the
   frame: `split bottom` + `shift down`.
-- `get-dive` (`$ModCtrl-a`, autostart) — `shift left`, else
+- `shift-left` (`$ModCtrl-a`, autostart) — `shift left`, else
   `focus left --level=frame`, else `split left` + `shift left`.
-- `get-toss` (`$ModCtrl-e`, autostart) — `shift right`, else
+- `shift-right` (`$ModCtrl-e`, autostart) — `shift right`, else
   `split right` + `focus --level=frame right`.
-- `get-tuck` (`$ModShift-t`, autostart, FRAME HALF ONLY) —
+- `new-frame` (`$ModShift-t`, autostart, FRAME HALF ONLY) —
   `split auto` + `cycle_frame` only when the focused frame holds
   >0 windows; an empty frame stays as is. The `spawn $TERMINAL`
   half is a dotfiles concern — herbctl never spawns terminals;
   the dots keybind chains this with the spawn.
-- `get-hold` (`$ModShift-q`, autostart) — a focused float is
+- `close-or-remove` (`$ModShift-q`, autostart) — a focused float is
   closed and its frame removed; otherwise `close_or_remove`.
-- `get-wrench` (`$ModCtrl-q`, autostart) — xkill-or-close: a
+- `xkill-or-close` (`$ModCtrl-q`, autostart) — xkill-or-close: a
   focused client exists -> `spawn xkill`, else `close_and_remove`.
-- `get-vex` (`$Mod-v`, autostart) — `split right 0.5` +
+- `split-right-cycle` (`$Mod-v`, autostart) — `split right 0.5` +
   `cycle_frame`.
-- `get-bend` (`$Mod-b`, autostart) — `focus --level=frame down`,
-  else `split bottom 0.5` + `cycle_frame`.
-- `get-vexi` (`$ModCtrl-v`, autostart) — `split right 0.5` +
-  `focus -e right`.
-- `get-bendi` (`$ModCtrl-b`, autostart) — `split bottom 0.5` +
-  `focus -i down`.
-- `get-quiet` (`$Mod-q`, floating.sh) — a focused float is ONLY
+- `focus-frame-down` (`$Mod-b`, autostart) — `focus --level=frame
+  down`, else `split bottom 0.5` + `cycle_frame`.
+- `split-right-focus` (`$ModCtrl-v`, autostart) — `split right 0.5`
+  + `focus -e right`.
+- `split-bottom-focus` (`$ModCtrl-b`, autostart) — `split bottom
+  0.5` + `focus -i down`.
+- `close-window` (`$Mod-q`, floating.sh) — a focused float is ONLY
   un-floated; tiling windows get closed, with a lone-window frame
   removed afterwards — under lock.
-- `get-hush` (`$ModShift-f`, floating.sh) — fullscreen toggle on
+- `fullscreen-toggle` (`$ModShift-f`, floating.sh) — fullscreen
+  toggle on the focused client.
+- `minimize-toggle` (`$ModShift-z`, nav.sh) — minimized toggle on
   the focused client.
-- `get-nap` (`$ModShift-z`, nav.sh) — minimized toggle on the
-  focused client.
-- `get-zoom` (`$ModCtrl-f`, hc_zoom) — the three-state press
-  machine: tiled -> float (flag reset + center + deco-flush frame
-  fill + fit) / floating -> maximize onto `<tag>-max` / maximized
-  -> restore. The `-max` check runs BEFORE the floating check;
+- `zoom` (`$ModCtrl-f`, hc_zoom) — the three-state press machine:
+  tiled -> float (flag reset + center + deco-flush frame fill +
+  fit) / floating -> maximize onto `<tag>-max` / maximized ->
+  restore. The `-max` check runs BEFORE the floating check;
   PF_MAX state is owned by the delegated `hc_maximize` /
   `hc_unmaximize` helpers (and their daemon). Exit 1 when no
   window is focused.
-- `get-extracted` (`$Mod-x`, hc_floatx) — the layer-yank machine:
+- `float-yank` (`$Mod-x`, hc_floatx) — the layer-yank machine:
   focus-a-float-then-unfloat / yank (float + center into the
   float session, frame left alone) / defer /
   un-float-into-empty-frame / tidying (remove, reveal,
   `polyframes hidden`, `use_previous`).
-- `get-focus` (`$Mod-f`, hc_focus) — the float-register machine:
+- `float-focus` (`$Mod-f`, hc_focus) — the float-register machine:
   try focusing a float (un-float it into an EMPTY focused frame;
   with children the float stays, no stacking) / no floats + max
   layout -> the size-keeping lift (`hc_center frame` +
@@ -160,8 +162,8 @@ Importable, shared building blocks of the machines above:
   more than one frame and the focused one holds zero clients.
 
 ```ts
-import { getSouth, getFocus } from "herbctl/src/lib/chains.js";
-import { getZoom } from "herbctl/src/lib/zoom.js";
+import { getSouth, floatFocus } from "herbctl/src/lib/chains.js";
+import { zoomToggle } from "herbctl/src/lib/zoom.js";
 import { unfloatWid, floatCenterFrame } from
     "herbctl/src/lib/imperatives.js";
 ```
@@ -200,7 +202,7 @@ resolved from `$HOME/.local/bin` by default. Override the
 directory (tests point it at a fixture dir) with:
 
 ```bash
-HERBSTCTL_HELPER_DIR=/path/to/bin herbctl get-extracted
+HERBSTCTL_HELPER_DIR=/path/to/bin herbctl float-yank
 ```
 
 Every spawn (herbstclient and helpers) carries the 5-second

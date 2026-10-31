@@ -17,28 +17,28 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
-    getAdvice,
-    getBend,
-    getBendi,
-    getBelow,
+    focusFrameLeft,
+    focusFrameDown,
+    splitBottomFocus,
+    splitDown,
     getDeck,
     getDedeck,
-    getDive,
-    getExplore,
+    shiftLeft,
+    explodeFrame,
     getForward,
-    getHold,
-    getHush,
-    getNap,
-    getQuiet,
-    getRotate,
-    getShuffle,
-    getSkip,
+    closeOrRemove,
+    fullscreenToggle,
+    minimizeToggle,
+    closeWindow,
+    rotateTree,
+    shiftUp,
+    shiftDown,
     getSouth,
-    getToss,
-    getTuck,
-    getVex,
-    getVexi,
-    getWrench,
+    shiftRight,
+    newFrame,
+    splitRightCycle,
+    splitRightFocus,
+    xkillOrClose,
 } from "../src/lib/chains";
 import {
     floatCenterFrame,
@@ -175,8 +175,8 @@ describe("pure keybind chains", () => {
     });
 
     // focus.sh $Mod-e
-    test("getExplore issues the cycle-backward/explode chain", async () => {
-        await getExplore();
+    test("explodeFrame issues the cycle-backward/explode chain", async () => {
+        await explodeFrame();
         expect(log()).toEqual([
             [
                 "or", ".",
@@ -187,16 +187,16 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $Mod-a
-    test("getAdvice issues the focus-left-or-split chain", async () => {
-        await getAdvice();
+    test("focusFrameLeft issues the focus-left-or-split chain", async () => {
+        await focusFrameLeft();
         expect(log()).toEqual([
             ["or", ",", "focus", "left", "--level=frame", ",", "split", "left", "0.33333"],
         ]);
     });
 
     // nav.sh $ModShift-w
-    test("getShuffle issues the shift-up ladder (shift up / cycle -1 / cycle+rotate frames)", async () => {
-        await getShuffle();
+    test("shiftUp issues the shift-up ladder (shift up / cycle -1 / cycle+rotate frames)", async () => {
+        await shiftUp();
         expect(log()).toEqual([
             [
                 "or",
@@ -210,8 +210,8 @@ describe("pure keybind chains", () => {
     });
 
     // focus.sh $ModCtrl-r
-    test("getRotate issues the rotate-or-cycle chain", async () => {
-        await getRotate();
+    test("rotateTree issues the rotate-or-cycle chain", async () => {
+        await rotateTree();
         expect(log()).toEqual([
             [
                 "or",
@@ -224,8 +224,8 @@ describe("pure keybind chains", () => {
     });
 
     // nav.sh $ModShift-s
-    test("getSkip issues the empty-frame-remove / shift-down-or-split chain", async () => {
-        await getSkip();
+    test("shiftDown issues the empty-frame-remove / shift-down-or-split chain", async () => {
+        await shiftDown();
         expect(log()).toEqual([
             [
                 "or",
@@ -240,8 +240,8 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $ModShift-b
-    test("getBelow issues the split-bottom-and-shift chain", async () => {
-        await getBelow();
+    test("splitDown issues the split-bottom-and-shift chain", async () => {
+        await splitDown();
         expect(log()).toEqual([
             [
                 "or", ".",
@@ -252,8 +252,8 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $ModCtrl-a
-    test("getDive issues the shift-left / focus-left / split+shift chain", async () => {
-        await getDive();
+    test("shiftLeft issues the shift-left / focus-left / split+shift chain", async () => {
+        await shiftLeft();
         expect(log()).toEqual([
             [
                 "or",
@@ -265,8 +265,8 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $ModCtrl-e
-    test("getToss issues the shift-right / split-right+focus-right chain", async () => {
-        await getToss();
+    test("shiftRight issues the shift-right / split-right+focus-right chain", async () => {
+        await shiftRight();
         expect(log()).toEqual([
             [
                 "or",
@@ -278,8 +278,8 @@ describe("pure keybind chains", () => {
 
     // autostart $ModShift-t — the FRAME LOGIC ONLY; the `spawn
     // $TERMINAL` half stays a dots concern (the dots keybind chains it).
-    test("getTuck issues the split-auto-when-populated chain, WITHOUT the terminal spawn", async () => {
-        await getTuck();
+    test("newFrame issues the split-auto-when-populated chain, WITHOUT the terminal spawn", async () => {
+        await newFrame();
         expect(log()).toEqual([
             [
                 "chain",
@@ -296,8 +296,8 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $ModShift-q
-    test("getHold issues the float-close / close_or_remove chain", async () => {
-        await getHold();
+    test("closeOrRemove issues the float-close / close_or_remove chain", async () => {
+        await closeOrRemove();
         expect(log()).toEqual([
             [
                 "or",
@@ -310,8 +310,8 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $ModCtrl-q
-    test("getWrench issues the xkill-or-close chain", async () => {
-        await getWrench();
+    test("xkillOrClose issues the xkill-or-close chain", async () => {
+        await xkillOrClose();
         expect(log()).toEqual([
             [
                 "or",
@@ -324,16 +324,16 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $Mod-v
-    test("getVex issues the split-right-half + cycle_frame chain", async () => {
-        await getVex();
+    test("splitRightCycle issues the split-right-half + cycle_frame chain", async () => {
+        await splitRightCycle();
         expect(log()).toEqual([
             ["chain", ",", "split", "right", "0.5", ",", "cycle_frame"],
         ]);
     });
 
     // autostart $Mod-b
-    test("getBend issues the focus-down / split-bottom+cycle chain", async () => {
-        await getBend();
+    test("focusFrameDown issues the focus-down / split-bottom+cycle chain", async () => {
+        await focusFrameDown();
         expect(log()).toEqual([
             [
                 "or",
@@ -344,24 +344,24 @@ describe("pure keybind chains", () => {
     });
 
     // autostart $ModCtrl-v
-    test("getVexi issues the split-right-half + focus -e right chain", async () => {
-        await getVexi();
+    test("splitRightFocus issues the split-right-half + focus -e right chain", async () => {
+        await splitRightFocus();
         expect(log()).toEqual([
             ["chain", ",", "split", "right", "0.5", ",", "focus", "-e", "right"],
         ]);
     });
 
     // autostart $ModCtrl-b
-    test("getBendi issues the split-bottom-half + focus -i down chain", async () => {
-        await getBendi();
+    test("splitBottomFocus issues the split-bottom-half + focus -i down chain", async () => {
+        await splitBottomFocus();
         expect(log()).toEqual([
             ["chain", ",", "split", "bottom", "0.5", ",", "focus", "-i", "down"],
         ]);
     });
 
     // floating.sh $Mod-q
-    test("getQuiet issues the un-float-or-close chain", async () => {
-        await getQuiet();
+    test("closeWindow issues the un-float-or-close chain", async () => {
+        await closeWindow();
         expect(log()).toEqual([
             [
                 "chain", "!", "lock",
@@ -377,14 +377,14 @@ describe("pure keybind chains", () => {
     });
 
     // floating.sh $ModShift-f
-    test("getHush toggles fullscreen on the focused client", async () => {
-        await getHush();
+    test("fullscreenToggle toggles fullscreen on the focused client", async () => {
+        await fullscreenToggle();
         expect(log()).toEqual([["attr", "clients.focus.fullscreen", "toggle"]]);
     });
 
     // nav.sh $ModShift-z
-    test("getNap toggles minimized on the focused client", async () => {
-        await getNap();
+    test("minimizeToggle toggles minimized on the focused client", async () => {
+        await minimizeToggle();
         expect(log()).toEqual([["attr", "clients.focus.minimized", "toggle"]]);
     });
 });
@@ -469,20 +469,20 @@ describe("CLI verbs", () => {
     test("all 22 chain verbs are registered under their functional names", async () => {
         const mod = await import("../src/commands/get-deck");
         const names: string[] = [];
-        for (const verb of ["get-south", "get-forward", "get-deck", "get-dedeck", "get-explore",
-            "get-advice", "get-shuffle", "get-rotate", "get-skip", "get-below",
-            "get-dive", "get-toss", "get-tuck", "get-hold", "get-wrench",
-            "get-vex", "get-bend", "get-vexi", "get-bendi", "get-quiet",
-            "get-hush", "get-nap"]) {
+        for (const verb of ["get-south", "get-forward", "get-deck", "get-dedeck", "explode-frame",
+            "focus-frame-left", "shift-up", "rotate-tree", "shift-down", "split-down",
+            "shift-left", "shift-right", "new-frame", "close-or-remove", "xkill-or-close",
+            "split-right-cycle", "focus-frame-down", "split-right-focus", "split-bottom-focus", "close-window",
+            "fullscreen-toggle", "minimize-toggle"]) {
             const cmd = (await import(`../src/commands/${verb}`)).default;
             names.push(String((cmd as { name: string }).name));
         }
         expect(names).toEqual([
-            "get-south", "get-forward", "get-deck", "get-dedeck", "get-explore",
-            "get-advice", "get-shuffle", "get-rotate", "get-skip", "get-below",
-            "get-dive", "get-toss", "get-tuck", "get-hold", "get-wrench",
-            "get-vex", "get-bend", "get-vexi", "get-bendi", "get-quiet",
-            "get-hush", "get-nap",
+            "get-south", "get-forward", "get-deck", "get-dedeck", "explode-frame",
+            "focus-frame-left", "shift-up", "rotate-tree", "shift-down", "split-down",
+            "shift-left", "shift-right", "new-frame", "close-or-remove", "xkill-or-close",
+            "split-right-cycle", "focus-frame-down", "split-right-focus", "split-bottom-focus", "close-window",
+            "fullscreen-toggle", "minimize-toggle",
         ]);
         expect(mod.default).toBeDefined();
     });

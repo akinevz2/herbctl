@@ -2,31 +2,31 @@
 
 import { createCLI } from "@bunli/core";
 
-import getAdvice from "./commands/get-advice.js";
-import getBend from "./commands/get-bend.js";
-import getBendi from "./commands/get-bendi.js";
-import getBelow from "./commands/get-below.js";
+import focusFrameLeft from "./commands/focus-frame-left.js";
+import focusFrameDown from "./commands/focus-frame-down.js";
+import splitBottomFocus from "./commands/split-bottom-focus.js";
+import splitDown from "./commands/split-down.js";
 import getDeck from "./commands/get-deck.js";
 import getDedeck from "./commands/get-dedeck.js";
-import getDive from "./commands/get-dive.js";
-import getExplore from "./commands/get-explore.js";
-import getExtracted from "./commands/get-extracted.js";
-import getFocus from "./commands/get-focus.js";
+import shiftLeft from "./commands/shift-left.js";
+import explodeFrame from "./commands/explode-frame.js";
+import floatYank from "./commands/float-yank.js";
+import floatFocus from "./commands/float-focus.js";
 import getForward from "./commands/get-forward.js";
-import getHold from "./commands/get-hold.js";
-import getHush from "./commands/get-hush.js";
-import getNap from "./commands/get-nap.js";
-import getQuiet from "./commands/get-quiet.js";
-import getRotate from "./commands/get-rotate.js";
-import getShuffle from "./commands/get-shuffle.js";
-import getSkip from "./commands/get-skip.js";
+import closeOrRemove from "./commands/close-or-remove.js";
+import fullscreenToggle from "./commands/fullscreen-toggle.js";
+import minimizeToggle from "./commands/minimize-toggle.js";
+import closeWindow from "./commands/close-window.js";
+import rotateTree from "./commands/rotate-tree.js";
+import shiftUp from "./commands/shift-up.js";
+import shiftDown from "./commands/shift-down.js";
 import getSouth from "./commands/get-south.js";
-import getToss from "./commands/get-toss.js";
-import getTuck from "./commands/get-tuck.js";
-import getVex from "./commands/get-vex.js";
-import getVexi from "./commands/get-vexi.js";
-import getWrench from "./commands/get-wrench.js";
-import getZoom from "./commands/get-zoom.js";
+import shiftRight from "./commands/shift-right.js";
+import newFrame from "./commands/new-frame.js";
+import splitRightCycle from "./commands/split-right-cycle.js";
+import splitRightFocus from "./commands/split-right-focus.js";
+import xkillOrClose from "./commands/xkill-or-close.js";
+import zoomToggle from "./commands/zoom.js";
 
 import { name, version, description } from "../package.json" with { type: "json" };
 
@@ -37,10 +37,10 @@ const cli = await createCLI({
 });
 
 for (const command of [
-  getSouth, getForward, getDeck, getDedeck, getExplore, getAdvice,
-  getShuffle, getRotate, getSkip, getBelow, getDive, getToss,
-  getTuck, getHold, getWrench, getVex, getBend, getVexi, getBendi,
-  getQuiet, getHush, getNap, getZoom, getExtracted, getFocus,
+  getSouth, getForward, getDeck, getDedeck, explodeFrame, focusFrameLeft,
+  shiftUp, rotateTree, shiftDown, splitDown, shiftLeft, shiftRight,
+  newFrame, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
+  closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus,
 ]) {
   cli.command(command);
 }
