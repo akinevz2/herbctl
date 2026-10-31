@@ -17,14 +17,7 @@
 // too (a hung WM may never wedge the bar or the keybind) — inherited
 // from herbstutil's spawn layer.
 
-// herbstutil is imported by SIBLING-RELATIVE source path, not as a
-// package dependency: bun 1.4.2 cannot resolve a transitive file:
-// dependency (polyframes -> file:../herbctl -> file:../herbstutil
-// fails on the second hop), and the three repos are always siblings
-// in both checkout layouts (development/system/* and dots
-// depends/.local/share/*). Consequence: herbctl is not npm-publishable
-// as-is — the sibling invariant is documented in the README.
-import { parseAttr } from "../../../herbstutil/src/commands/parse.js";
+import { parseAttr } from "herbstutil/src/commands/parse.js";
 
 const HERBSTCLIENT = "herbstclient";
 

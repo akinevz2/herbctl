@@ -45,7 +45,8 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@bunli/core": "latest"
+    "@bunli/core": "latest",
+    "herbstutil": "^0.3.0"
   },
   "devDependencies": {
     "@bunli/test": "latest",
