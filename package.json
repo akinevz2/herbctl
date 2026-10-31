@@ -4,7 +4,7 @@
   "description": "The hlwm keybind state machines \u2014 navigation, float-layer and zoom compositions as herbstctl subcommands (herbstutil stays the pure parse/attr layer).",
   "author": "Kirill <kine> Nevzorov",
   "email": "akinevz@outlook.com",
-  "license": "GPL-2.0-only",
+  "license": "GPL-2.0-or-later",
   "homepage": "https://github.com/akinevz2/herbctl",
   "bin": {
     "herbctl": "src/index.ts"
