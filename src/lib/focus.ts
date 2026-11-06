@@ -113,3 +113,77 @@ export async function floatFocus(): Promise<void> {
         ",", "attr", `clients.${wid}.floating`, "off",
     );
 }
+
+// float-unfocus — the $Mod-x command (herbctl v1.4.0; hc_floatx, the
+// old $Mod-x register, moves to $ModCtrl-x):
+//
+//   floating_focused TRUE (a float holds focus):
+//     focused tiling frame EMPTY (curframe_wcount = 0) -> UN-FLOAT the
+//       focused float into it (the register chain: fullscreen/
+//       pseudotile/floating off — no jumpto, the window is already
+//       focused; hlwm tracks the register on un-float).
+//     otherwise -> focus the TILING layer (floating_focused off) —
+//       the float stays floating, untouched.
+//
+//   floating_focused FALSE (the tiling layer owns focus):
+//     focus the floating layer's window — ONLY focus, NO un-float —
+//     via floating_focused on (fails fail-soft when no non-minimized
+//     float exists), jumpto the float (the pre-scanned wid is PRIMARY
+//     — clients.focus may lag a settle-tick after the layer switch),
+//     then hc_center root.
+//
+// Fail-soft everywhere; no script-level lock (hc_center takes its own
+// reference-counted WM lock — the hc_focus header convention).
+export async function floatUnfocus(): Promise<void> {
+    const tag = await attrRaw("tags.focus.name");
+
+    // Pre-scan the first visible (non-minimized) float on the tag.
+    let floatWid = "";
+    if (tag) {
+        for (const c of await listClientsByTag(tag)) {
+            const floating = (await attrRaw(`clients.${c}.floating`)) || "false";
+            if (floating === "true") {
+                const minimized = (await attrRaw(`clients.${c}.minimized`)) || "false";
+                if (minimized === "false") {
+                    floatWid = c;
+                    break;
+                }
+            }
+        }
+    }
+
+    const ff = (await attrRaw("tags.focus.floating_focused")) || "false";
+
+    if (ff === "true") {
+        // a float has focus. clients.focus may lag a settle-tick —
+        // fall back to the pre-scanned wid (the floatFocus pattern).
+        let wid = await attrRaw("clients.focus.winid");
+        if (!wid) wid = floatWid;
+        const cwc = (await attrRaw("tags.focus.curframe_wcount")) || "1";
+        if (cwc === "0" && wid) {
+            // un-float the focused float into the empty focused frame.
+            await hc(
+                "chain",
+                ",", "attr", `clients.${wid}.fullscreen`, "off",
+                ",", "attr", `clients.${wid}.pseudotile`, "off",
+                ",", "attr", `clients.${wid}.floating`, "off",
+            );
+            return;
+        }
+        // populated focused frame: hand focus to the tiling layer —
+        // the float stays floating, untouched.
+        await hc("attr", "tags.focus.floating_focused", "off");
+        return;
+    }
+
+    // the tiling layer owns focus: focus the float — only focus, no
+    // un-float — then center it to root.
+    if ((await hc("attr", "tags.focus.floating_focused", "on")) === null) {
+        return; // no non-minimized float exists — fail-soft terminate
+    }
+    const wid = floatWid || (await attrRaw("clients.focus.winid"));
+    if (wid) {
+        await hc("jumpto", wid);
+    }
+    await helper("hc_center", ["root"]);
+}

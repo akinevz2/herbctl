@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 import { zoomToggle } from "../src/lib/zoom";
 import { floatYank } from "../src/lib/extracted";
-import { floatFocus } from "../src/lib/focus";
+import { floatFocus, floatUnfocus } from "../src/lib/focus";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
 
@@ -575,6 +575,102 @@ describe("floatFocus (hc_focus port)", () => {
             ["attr", "clients.0x2000007.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"], // empty -> no float_wid -> stop
+        ]);
+    });
+});
+
+// floatUnfocus — the $Mod-x command (hc_floatx moved to $ModCtrl-x).
+describe("floatUnfocus ($Mod-x port)", () => {
+    const UNFLOAT_CHAIN = (wid: string) => [
+        "chain",
+        ",", "attr", `clients.${wid}.fullscreen`, "off",
+        ",", "attr", `clients.${wid}.pseudotile`, "off",
+        ",", "attr", `clients.${wid}.floating`, "off",
+    ];
+
+    test("float focused + EMPTY focused frame -> un-float the focused float into it", async () => {
+        scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
+            ["^list_clients --tag=work$", "0", "0x1000002"],
+            ["^attr clients\\.0x1000002\\.floating$", "0", "true"],
+            ["^attr clients\\.0x1000002\\.minimized$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
+            ["^attr tags\\.focus\\.curframe_wcount$", "0", "0"],
+        ]);
+        await floatUnfocus();
+        expect(log()).toEqual([
+            ["attr", "tags.focus.name"],
+            ["list_clients", "--tag=work"],
+            ["attr", "clients.0x1000002.floating"],
+            ["attr", "clients.0x1000002.minimized"],
+            ["attr", "tags.focus.floating_focused"],
+            ["attr", "clients.focus.winid"],
+            ["attr", "tags.focus.curframe_wcount"],
+            UNFLOAT_CHAIN("0x1000002"),
+        ]);
+    });
+
+    test("float focused + populated frame -> focus the tiling layer (float untouched)", async () => {
+        scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
+            ["^list_clients --tag=work$", "0", "0x1000002"],
+            ["^attr clients\\.0x1000002\\.floating$", "0", "true"],
+            ["^attr clients\\.0x1000002\\.minimized$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
+            ["^attr tags\\.focus\\.curframe_wcount$", "0", "1"],
+        ]);
+        await floatUnfocus();
+        expect(log()).toEqual([
+            ["attr", "tags.focus.name"],
+            ["list_clients", "--tag=work"],
+            ["attr", "clients.0x1000002.floating"],
+            ["attr", "clients.0x1000002.minimized"],
+            ["attr", "tags.focus.floating_focused"],
+            ["attr", "clients.focus.winid"],
+            ["attr", "tags.focus.curframe_wcount"],
+            ["attr", "tags.focus.floating_focused", "off"],
+        ]);
+    });
+
+    test("tiling focused + visible float -> layer switch + jumpto + hc_center root (focus only, no un-float)", async () => {
+        scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
+            ["^list_clients --tag=work$", "0", "0x1000001"],
+            ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
+            ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
+        ]);
+        await floatUnfocus();
+        expect(log()).toEqual([
+            ["attr", "tags.focus.name"],
+            ["list_clients", "--tag=work"],
+            ["attr", "clients.0x1000001.floating"],
+            ["attr", "clients.0x1000001.minimized"],
+            ["attr", "tags.focus.floating_focused"],
+            ["attr", "tags.focus.floating_focused", "on"],
+            ["jumpto", "0x1000001"],
+            [`${FIX}/hc_center`, "root"],
+        ]);
+    });
+
+    test("tiling focused + no float -> the layer switch fails, fail-soft terminate", async () => {
+        scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
+            ["^list_clients --tag=work$", "0", "0x1000003"],
+            ["^attr clients\\.0x1000003\\.floating$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
+        ]);
+        await floatUnfocus();
+        expect(log()).toEqual([
+            ["attr", "tags.focus.name"],
+            ["list_clients", "--tag=work"],
+            ["attr", "clients.0x1000003.floating"],
+            ["attr", "tags.focus.floating_focused"],
+            ["attr", "tags.focus.floating_focused", "on"], // fails: no floats
         ]);
     });
 });

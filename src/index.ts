@@ -12,6 +12,7 @@ import shiftLeft from "./commands/shift-left.js";
 import explodeFrame from "./commands/explode-frame.js";
 import floatYank from "./commands/float-yank.js";
 import floatFocus from "./commands/float-focus.js";
+import floatUnfocus from "./commands/float-unfocus.js";
 import getForward from "./commands/get-forward.js";
 import closeOrRemove from "./commands/close-or-remove.js";
 import fullscreenToggle from "./commands/fullscreen-toggle.js";
@@ -40,7 +41,7 @@ for (const command of [
   getSouth, getForward, getDeck, getDedeck, explodeFrame, focusFrameLeft,
   shiftUp, rotateTree, shiftDown, splitDown, shiftLeft, shiftRight,
   newFrame, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
-  closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus,
+  closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus,
 ]) {
   cli.command(command);
 }
