@@ -1,7 +1,7 @@
 {
   "name": "herbctl",
-  "version": "1.1.0",
-  "description": "The hlwm keybind state machines — navigation, float-layer and zoom compositions as herbstctl subcommands (herbstutil stays the pure parse/attr layer).",
+  "version": "1.1.1",
+  "description": "kine's herbstluftwm controller. window manager optimised commands",
   "author": "Kirill <kine> Nevzorov",
   "email": "akinevz@outlook.com",
   "license": "GPL-2.0-or-later",
