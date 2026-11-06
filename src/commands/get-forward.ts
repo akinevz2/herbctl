@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, getForward } from "../lib/chains.js";
 
-export default navCommand("get-forward", '[$Mod-w] Leave the float layer, cycle up', getForward);
+export default navCommand("get-forward", 'Leave float layer', getForward);

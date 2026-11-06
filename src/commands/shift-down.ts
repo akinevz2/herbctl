@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, shiftDown } from "../lib/chains.js";
 
-export default navCommand("shift-down", '[$ModShift-s] Shift down, else remove an empty frame', shiftDown);
+export default navCommand("shift-down", 'Shift down or remove', shiftDown);

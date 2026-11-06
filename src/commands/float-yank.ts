@@ -3,4 +3,4 @@
 import { navCommand } from "../lib/chains.js";
 import { floatYank } from "../lib/extracted.js";
 
-export default navCommand("float-yank", '[hc_floatx, $Mod-x] Layer-yank machine (yank/defer/slurp)', floatYank);
+export default navCommand("float-yank", 'Yank/defer/slurp', floatYank);

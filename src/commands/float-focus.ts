@@ -3,4 +3,4 @@
 import { navCommand } from "../lib/chains.js";
 import { floatFocus } from "../lib/focus.js";
 
-export default navCommand("float-focus", '[hc_focus, $Mod-f] Float-register machine (focus-a-float/max-lift)', floatFocus);
+export default navCommand("float-focus", 'Float register/focus', floatFocus);

@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, explodeFrame } from "../lib/chains.js";
 
-export default navCommand("explode-frame", '[$Mod-e] Cycle back, or explode the last split', explodeFrame);
+export default navCommand("explode-frame", 'Cycle or explode', explodeFrame);

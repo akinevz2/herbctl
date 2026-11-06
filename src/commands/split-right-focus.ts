@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, splitRightFocus } from "../lib/chains.js";
 
-export default navCommand("split-right-focus", '[$ModCtrl-v] Split right at half, focus in', splitRightFocus);
+export default navCommand("split-right-focus", 'Split right, focus', splitRightFocus);

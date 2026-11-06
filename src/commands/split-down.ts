@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, splitDown } from "../lib/chains.js";
 
-export default navCommand("split-down", '[$ModShift-b] Split a bottom frame, shift into it', splitDown);
+export default navCommand("split-down", 'Split + shift down', splitDown);

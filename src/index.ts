@@ -45,53 +45,23 @@ for (const command of [
   cli.command(command);
 }
 
-const COMMANDS: [string, { name: string; description: string }][] = [
-  ["get-south", getSouth], ["get-forward", getForward], ["get-deck", getDeck],
-  ["get-dedeck", getDedeck], ["explode-frame", explodeFrame],
-  ["focus-frame-left", focusFrameLeft], ["shift-up", shiftUp],
-  ["rotate-tree", rotateTree], ["shift-down", shiftDown],
-  ["split-down", splitDown], ["shift-left", shiftLeft], ["shift-right", shiftRight],
-  ["new-frame", newFrame], ["close-or-remove", closeOrRemove],
-  ["xkill-or-close", xkillOrClose], ["split-right-cycle", splitRightCycle],
-  ["focus-frame-down", focusFrameDown], ["split-right-focus", splitRightFocus],
-  ["split-bottom-focus", splitBottomFocus], ["close-window", closeWindow],
-  ["fullscreen-toggle", fullscreenToggle], ["minimize-toggle", minimizeToggle],
-  ["zoom", zoomToggle], ["float-yank", floatYank], ["float-focus", floatFocus],
-];
-
-// The root help surface is OURS (the 2026-11 width contract): bunli's
-// built-in renderer ignores the terminal width, so bare `herbctl`,
-// `help` and bare `--help` render here with the width-aware helpers —
-// terse desc lines that pair when they fit; long prose stays in the
-// per-verb chains' docstrings. `help <verb>` delegates to the verb's
-// own --help.
+// The root help surface is bunli's (the herbstutil simplicity, 2026-11:
+// bunli's renderer IS width-aware — renderRootHelp pairs columns at
+// ctx.terminal.width — so nothing is hand-printed here). Bare `herbctl`
+// and bare `--help`/`help` all delegate to bunli's root help; `help
+// <verb>` and `<verb> help` delegate to the verb's own --help.
 const argv = process.argv.slice(2);
-if (
-  argv.length === 0 ||
-  (argv.length === 1 && ["help", "--help", "-h"].includes(argv[0]!))
-) {
-  const { echoHelpList, wrapHelp } = await import("./lib/lines.js");
-  console.log(`${name} ${version}`);
-  for (const line of wrapHelp(description)) console.log(`  ${line}`);
-  console.log("");
-  echoHelpList(
-    name,
-    "usage: herbctl <verb> [args]   (help <verb> for a verb; per-verb needs a running herbstluftwm)",
-    COMMANDS.map(([verb, cmd]) => {
-      const desc: string = (cmd as { description: string }).description;
-      return `${verb}\t${desc.replaceAll("\n", " ")}`;
-    }),
-  );
-  process.exit(0);
-}
-
-if (argv[0] === "help") {
+if (argv.length === 0) {
+  process.argv = [process.argv[0], process.argv[1], "--help"];
+} else if (argv[0] === "help") {
   const rest = argv.slice(1);
   // cli.run() re-reads process.argv — rewrite it, not the slice
   process.argv = [
     process.argv[0], process.argv[1],
     ...(rest.length === 0 ? ["--help"] : [...rest, "--help"]),
   ];
+} else if (argv.length === 2 && argv[1] === "help") {
+  process.argv = [process.argv[0], process.argv[1], argv[0], "--help"];
 }
 
 const [_node, _bin, command, ...args] = process.argv;

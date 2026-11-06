@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, splitRightCycle } from "../lib/chains.js";
 
-export default navCommand("split-right-cycle", '[$Mod-v] Split right at half, cycle in', splitRightCycle);
+export default navCommand("split-right-cycle", 'Split right, cycle', splitRightCycle);

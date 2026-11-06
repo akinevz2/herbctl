@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, splitBottomFocus } from "../lib/chains.js";
 
-export default navCommand("split-bottom-focus", '[$ModCtrl-b] Split bottom at half, focus in', splitBottomFocus);
+export default navCommand("split-bottom-focus", 'Split bottom, focus', splitBottomFocus);
