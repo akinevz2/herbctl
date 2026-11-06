@@ -1,9 +1,8 @@
 import { defineConfig } from "@bunli/core";
+import pkg from "./package.json" with { type: "json" };
 
 export default defineConfig({
-  name: "herbctl",
-  version: "0.1.0",
-  description: "The hlwm keybind state machines — navigation, float-layer and zoom compositions",
+  ...pkg,
 
   commands: {
     directory: "./src/commands",
