@@ -132,10 +132,37 @@ export async function shiftUp(): Promise<void> {
     );
 }
 
-/** $ModCtrl-r (focus.sh): rotate-tree — rotate the tree (<3 frames) or
- *  cycle frames forward; on a single frame it cycles windows in the
- *  opposite direction of shift-up. */
-export async function rotateTree(): Promise<void> {
+/** $ModCtrl-r + $ModCtrl-c (autostart): rotate-tree. Three modes:
+ *  auto (default, $ModCtrl-r) — the rotate/skip condition: rotate the
+ *    tree when <3 frames, otherwise the focus fallback (cycle_frame
+ *    forward when >1 frame, cycle windows on a single frame).
+ *  focus (--focus) — force the focus/skip branch: never rotate, the
+ *    forward cycle fallback unconditionally.
+ *  smart (--smart[=N], $ModCtrl-c) — the reversed condition: rotate
+ *    when frame_count >= N (default 3 — the exact complement of the
+ *    auto rotate threshold), cycle BACKWARDS below it (frames when
+ *    >1, windows on a single frame). */
+export type RotateTreeMode = "auto" | "focus" | "smart";
+
+export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): Promise<void> {
+    if (mode === "smart") {
+        await hc(
+            "or",
+            ",", "and", ".", "compare", "tags.focus.frame_count", "ge", String(threshold),
+            ".", "chain", "!", "lock", "!", "rotate", "!", "unlock",
+            ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame", "-1",
+            ",", "cycle", "-1",
+        );
+        return;
+    }
+    if (mode === "focus") {
+        await hc(
+            "or",
+            ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame",
+            ",", "cycle", "+1",
+        );
+        return;
+    }
     await hc(
         "or",
         ",", "and", ".", "compare", "tags.focus.frame_count", "lt", "3",

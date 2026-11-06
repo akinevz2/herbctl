@@ -223,6 +223,47 @@ describe("pure keybind chains", () => {
         ]);
     });
 
+    // autostart $ModCtrl-r with --focus: the focus/skip branch, forced
+    test("rotateTree focus mode forces the forward cycle fallback", async () => {
+        await rotateTree("focus");
+        expect(log()).toEqual([
+            [
+                "or",
+                ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame",
+                ",", "cycle", "+1",
+            ],
+        ]);
+    });
+
+    // autostart $ModCtrl-c with --smart: the reversed condition — rotate
+    // N-or-more frames, cycle BACKWARDS below (frames when >1, windows
+    // on a single frame)
+    test("rotateTree smart mode issues the reversed rotate-or-cycle chain", async () => {
+        await rotateTree("smart");
+        expect(log()).toEqual([
+            [
+                "or",
+                ",", "and", ".", "compare", "tags.focus.frame_count", "ge", "3",
+                ".", "chain", "!", "lock", "!", "rotate", "!", "unlock",
+                ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame", "-1",
+                ",", "cycle", "-1",
+            ],
+        ]);
+    });
+
+    test("rotateTree smart mode honours the threshold", async () => {
+        await rotateTree("smart", 4);
+        expect(log()).toEqual([
+            [
+                "or",
+                ",", "and", ".", "compare", "tags.focus.frame_count", "ge", "4",
+                ".", "chain", "!", "lock", "!", "rotate", "!", "unlock",
+                ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame", "-1",
+                ",", "cycle", "-1",
+            ],
+        ]);
+    });
+
     // nav.sh $ModShift-s
     test("shiftDown issues the empty-frame-remove / shift-down-or-split chain", async () => {
         await shiftDown();

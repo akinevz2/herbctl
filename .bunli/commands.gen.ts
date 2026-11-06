@@ -4,18 +4,26 @@
 import type { Command, CLI, GeneratedOptionMeta, RegisteredCommands, CommandOptions, GeneratedCommandMeta } from '@bunli/core'
 import { createGeneratedHelpers, registerGeneratedStore } from '@bunli/core'
 
-
+import RotateTree from '../src/commands/rotate-tree.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = [] as const
+const names = ['rotate-tree'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
-
+  'rotate-tree': RotateTree
 } as const
 
 const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
-
+  'rotate-tree': {
+      name: 'rotate-tree',
+      description: 'Rotate the tree',
+      options: {
+        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Force the focus/cycle branch (never rotate)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":766,"end":771,"loc":{"start":{"line":17,"column":42,"index":766},"end":{"line":17,"column":47,"index":771}},"value":false}}]}, validator: '(val) => true' },
+        'smart': { type: 'z.preprocess', required: true, hasDefault: false, description: 'Rotate frame_count >= N frames, cycle backwards below (default 3)', schema: {"type":"zod","method":"preprocess","args":[{"type":"unknown","raw":{"type":"ArrowFunctionExpression","start":925,"end":954,"loc":{"start":{"line":22,"column":16,"index":925},"end":{"line":22,"column":45,"index":954}},"id":null,"generator":false,"async":false,"params":[{"type":"Identifier","start":926,"end":927,"loc":{"start":{"line":22,"column":17,"index":926},"end":{"line":22,"column":18,"index":927},"identifierName":"v"},"name":"v"}],"body":{"type":"ConditionalExpression","start":933,"end":953,"loc":{"start":{"line":22,"column":24,"index":933},"end":{"line":22,"column":44,"index":953}},"test":{"type":"BinaryExpression","start":933,"end":945,"loc":{"start":{"line":22,"column":24,"index":933},"end":{"line":22,"column":36,"index":945}},"left":{"type":"Identifier","start":933,"end":934,"loc":{"start":{"line":22,"column":24,"index":933},"end":{"line":22,"column":25,"index":934},"identifierName":"v"},"name":"v"},"operator":"===","right":{"type":"StringLiteral","start":939,"end":945,"loc":{"start":{"line":22,"column":30,"index":939},"end":{"line":22,"column":36,"index":945}},"extra":{"rawValue":"true","raw":"\"true\""},"value":"true"}},"consequent":{"type":"NumericLiteral","start":948,"end":949,"loc":{"start":{"line":22,"column":39,"index":948},"end":{"line":22,"column":40,"index":949}},"extra":{"rawValue":3,"raw":"3"},"value":3},"alternate":{"type":"Identifier","start":952,"end":953,"loc":{"start":{"line":22,"column":43,"index":952},"end":{"line":22,"column":44,"index":953},"identifierName":"v"},"name":"v"},"extra":{"parenthesized":true,"parenStart":932}}}},{"type":"zod","method":"optional","args":[]}]}, validator: '(val) => true' }
+      },
+      path: './src/commands/rotate-tree'
+    }
 } as const
 
 export const generated = registerGeneratedStore(createGeneratedHelpers(modules, metadata))
