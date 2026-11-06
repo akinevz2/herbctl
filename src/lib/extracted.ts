@@ -22,18 +22,19 @@
 //                                     max layout, or use_previous).
 //
 //   floating_focused TRUE (a float holds the layer focus):
-//     populated focused frame, ONE frame on the tag -> use_previous,
-//                                 hc_tile, un-float the focused client
-//                                 there.
-//     populated focused frame, MULTIPLE frames -> DEFER: hand focus to
-//                                 the tiling layer; the next press
-//                                 re-runs the focus-and-un-float branch.
-//     empty focused frame      -> UN-FLOAT the focused float into the
-//                                 empty frame.
+//     UN-FLOAT the focused float — the register chain re-tiles it
+//     into the focused frame below whatever it holds (populated or
+//     empty frame, one frame or many: every former sub-case unified)
+//     — then ATTEMPT to re-focus the tiling layer: floating_focused
+//     off as a SEPARATE follow-up write (hlwm tracks the register on
+//     un-float; a defensive write INSIDE the chain raced it — the
+//     follow-up is an idempotent no-op when it already handed focus
+//     back).
 //
 // Un-float chains intentionally contain NO floating_focused off — hlwm
-// tracks the register on un-float (the defensive write raced with it).
-// Standalone register writes (defer, re-entry failure) remain.
+// tracks the register on un-float (the defensive write raced with it);
+// the re-focus attempt runs AFTER the chain as a separate write.
+// Standalone register writes (re-entry failure) remain.
 
 import { attrRaw, hc, helper, helperDir, listClientsByTag } from "./hc.js";
 import { unfloatWid } from "./imperatives.js";
@@ -97,45 +98,14 @@ export async function floatYank(): Promise<void> {
             }
         }
 
-        // Mod-f's tile register, performed HERE (Mod-x owns hc_tile in
-        // this branch): populated frame in a NON-MAX layout ->
-        // un-float directly; populated frame in max layout -> hc_tile
-        // makes the new empty frame and the window un-floats into it.
-        const unfloatIntoFrameBelow = async (wid: string): Promise<void> => {
-            const fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
-            const falgo = await attrRaw("tags.focus.tiling.focused_frame.algorithm");
-            if (fcc !== "0" && falgo === "max") {
-                await helper("hc_tile", [wid]);
-                return;
-            }
-            await unfloatWid(wid);
-        };
-
         if (ff === "true") {
-            if (frameCc !== "0") {
-                if (frameCount === "1") {
-                    // The revised sequence: use_previous (back to the
-                    // previously viewed tag), hc_tile (the tile register
-                    // on whatever holds focus there), then un-float the
-                    // newly focused client if it is floating.
-                    await hc("use_previous");
-                    await helper("hc_tile");
-                    const wfocus = await attrRaw("clients.focus.winid");
-                    if (wfocus) {
-                        await hc("attr", `clients.${wfocus}.floating`, "false");
-                    }
-                } else {
-                    // DEFER: hand focus to the tiling layer; the next
-                    // press re-runs the focus-and-un-float branch.
-                    await hc("attr", "tags.focus.floating_focused", "off");
-                }
-                return;
-            }
-            // Empty focused frame: un-float the float into it directly.
-            const wfocus = await attrRaw("clients.focus.winid");
-            if (wfocus) {
-                await unfloatIntoFrameBelow(wfocus);
-                return;
+            // UN-FLOAT the focused float — the register chain re-tiles
+            // it into the focused frame below whatever it holds —
+            // then ATTEMPT to re-focus the tiling layer (see the
+            // header: the floating_focused off write is a separate
+            // follow-up, not part of the chain).
+            if (orig) {
+                await unfloatWid(orig);
             }
             await hc("attr", "tags.focus.floating_focused", "off");
             return;

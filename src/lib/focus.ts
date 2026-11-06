@@ -126,19 +126,18 @@ export async function floatFocus(): Promise<void> {
 //       the float stays floating, untouched.
 //
 //   floating_focused FALSE (the tiling layer owns focus):
-//     recall the float — focus the floating layer's window (ONLY
-//     focus, NO un-float) via floating_focused on (fails fail-soft
-//     when no non-minimized float exists), jumpto the float (the
-//     pre-scanned wid is PRIMARY — clients.focus may lag a
-//     settle-tick after the layer switch), then hc_center root.
-//     Afterwards the focused tiling window — captured BEFORE the
-//     layer switch hands focus away — becomes a small companion
-//     float: half width × half height of the work area (a quarter of
-//     the screen), its full outline parked flush in the top-left
-//     corner. The content rect is inset by the floating deco margins
-//     (theme.floating reads — the deterministic margin source; the
-//     live decoration read races hlwm's async float-deco apply) so
-//     the WINDOW's x/y offsets are zero, borders and title included.
+//     the focused tiling window — captured first — becomes a small
+//       companion float UNCONDITIONALLY: half width × half height of
+//       the work area, its full outline parked flush in the top-left
+//       corner (content rect inset by the theme.floating deco
+//       margins — the deterministic margin source; the live
+//       decoration read races hlwm's async float-deco apply).
+//     a pre-existing float (the pre-scanned wid) -> recall it: focus
+//       ONLY, no un-float — floating_focused on, jumpto, then
+//       hc_center root.
+//     no pre-existing float -> the companion IS the float session's
+//       focus: floating_focused on (the yank convention), no jumpto,
+//       no centering.
 //
 // Fail-soft everywhere; no script-level lock (hc_center takes its own
 // reference-counted WM lock — the hc_focus header convention).
@@ -184,26 +183,18 @@ export async function floatUnfocus(): Promise<void> {
         return;
     }
 
-    // the tiling layer owns focus: recall the float — focus only, no
-    // un-float — then center it to root. The focused tiling window is
-    // captured BEFORE the layer switch (the jumpto hands focus away)
-    // and becomes a small companion float afterwards: half width ×
-    // half height of the work area, its full outline parked flush in
-    // the top-left corner — the content rect is inset by the floating
-    // deco margins (theme.floating reads, the deterministic margin
-    // source: the live decoration read races hlwm's async float-deco
-    // apply) so the WINDOW's x/y offsets are zero, borders included.
+    // the tiling layer owns focus: the focused tiling window —
+    // captured before anything moves focus — becomes a small companion
+    // float UNCONDITIONALLY: half width × half height of the work
+    // area, its full outline parked flush in the top-left corner. The
+    // content rect is inset by the floating deco margins (theme.floating
+    // reads, the deterministic margin source: the live decoration read
+    // races hlwm's async float-deco apply) so the WINDOW's x/y offsets
+    // are zero, borders and title included. Unconditional — the old
+    // ordering ran the companion only after a successful recall, which
+    // made the key a silent no-op on a tag without floats.
     const tilingWid = await attrRaw("clients.focus.winid");
-    if ((await hc("attr", "tags.focus.floating_focused", "on")) === null) {
-        return; // no non-minimized float exists — fail-soft terminate
-    }
-    const wid = floatWid || (await attrRaw("clients.focus.winid"));
-    if (wid) {
-        await hc("jumpto", wid);
-    }
-    await helper("hc_center", ["root"]);
-
-    if (tilingWid && tilingWid !== wid) {
+    if (tilingWid) {
         await hc(
             "chain",
             ",", "attr", `clients.${tilingWid}.fullscreen`, "off",
@@ -226,5 +217,25 @@ export async function floatUnfocus(): Promise<void> {
             const h = Math.floor(Number(rm[2]) / 2);
             await helper("hc_resize", [tilingWid, `${w}x${h}+${left}+${top}`]);
         }
+    }
+
+    if (floatWid && floatWid !== tilingWid
+        && (await hc("attr", "tags.focus.floating_focused", "on")) !== null) {
+        // a pre-existing float: recall it — focus only, no un-float —
+        // then center it to root. The pre-scanned wid is PRIMARY
+        // (clients.focus may lag a settle-tick after the layer
+        // switch); a failed layer-focus write (vanished float) skips
+        // the centering — it would re-position the companion.
+        await hc("jumpto", floatWid);
+        await helper("hc_center", ["root"]);
+        return;
+    }
+    if (tilingWid) {
+        // no pre-existing float: the companion IS the float session's
+        // focus now — register the layer (the hc_floatx yank
+        // convention: floating on + floating_focused on) and leave it
+        // in the corner. NO jumpto (already focused), NO hc_center
+        // (the corner placement is the point).
+        await hc("attr", "tags.focus.floating_focused", "on");
     }
 }
