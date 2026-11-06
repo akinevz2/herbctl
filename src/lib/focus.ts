@@ -126,11 +126,19 @@ export async function floatFocus(): Promise<void> {
 //       the float stays floating, untouched.
 //
 //   floating_focused FALSE (the tiling layer owns focus):
-//     focus the floating layer's window — ONLY focus, NO un-float —
-//     via floating_focused on (fails fail-soft when no non-minimized
-//     float exists), jumpto the float (the pre-scanned wid is PRIMARY
-//     — clients.focus may lag a settle-tick after the layer switch),
-//     then hc_center root.
+//     recall the float — focus the floating layer's window (ONLY
+//     focus, NO un-float) via floating_focused on (fails fail-soft
+//     when no non-minimized float exists), jumpto the float (the
+//     pre-scanned wid is PRIMARY — clients.focus may lag a
+//     settle-tick after the layer switch), then hc_center root.
+//     Afterwards the focused tiling window — captured BEFORE the
+//     layer switch hands focus away — becomes a small companion
+//     float: half width × half height of the work area (a quarter of
+//     the screen), its full outline parked flush in the top-left
+//     corner. The content rect is inset by the floating deco margins
+//     (theme.floating reads — the deterministic margin source; the
+//     live decoration read races hlwm's async float-deco apply) so
+//     the WINDOW's x/y offsets are zero, borders and title included.
 //
 // Fail-soft everywhere; no script-level lock (hc_center takes its own
 // reference-counted WM lock — the hc_focus header convention).
@@ -176,8 +184,16 @@ export async function floatUnfocus(): Promise<void> {
         return;
     }
 
-    // the tiling layer owns focus: focus the float — only focus, no
-    // un-float — then center it to root.
+    // the tiling layer owns focus: recall the float — focus only, no
+    // un-float — then center it to root. The focused tiling window is
+    // captured BEFORE the layer switch (the jumpto hands focus away)
+    // and becomes a small companion float afterwards: half width ×
+    // half height of the work area, its full outline parked flush in
+    // the top-left corner — the content rect is inset by the floating
+    // deco margins (theme.floating reads, the deterministic margin
+    // source: the live decoration read races hlwm's async float-deco
+    // apply) so the WINDOW's x/y offsets are zero, borders included.
+    const tilingWid = await attrRaw("clients.focus.winid");
     if ((await hc("attr", "tags.focus.floating_focused", "on")) === null) {
         return; // no non-minimized float exists — fail-soft terminate
     }
@@ -186,4 +202,29 @@ export async function floatUnfocus(): Promise<void> {
         await hc("jumpto", wid);
     }
     await helper("hc_center", ["root"]);
+
+    if (tilingWid && tilingWid !== wid) {
+        await hc(
+            "chain",
+            ",", "attr", `clients.${tilingWid}.fullscreen`, "off",
+            ",", "attr", `clients.${tilingWid}.pseudotile`, "off",
+            ",", "attr", `clients.${tilingWid}.floating`, "on",
+        );
+        const rootGeom = await attrRaw("tags.focus.tiling.root.content_geometry");
+        const rm = rootGeom.match(/^(\d+)x(\d+)([+-]\d+)([+-]\d+)$/);
+        if (rm) {
+            const numOr = (s: string, d: number): number => {
+                const n = Number(s);
+                return Number.isFinite(n) ? n : d;
+            };
+            const bw = numOr(await attrRaw("theme.floating.border_width"), 2);
+            const left = Math.max(0, bw + numOr(await attrRaw("theme.floating.padding_left"), 0));
+            const top = Math.max(0, bw + numOr(await attrRaw("theme.floating.padding_top"), 0)
+                + numOr(await attrRaw("theme.floating.title_height"), 0)
+                + numOr(await attrRaw("theme.floating.title_depth"), 0));
+            const w = Math.floor(Number(rm[1]) / 2);
+            const h = Math.floor(Number(rm[2]) / 2);
+            await helper("hc_resize", [tilingWid, `${w}x${h}+${left}+${top}`]);
+        }
+    }
 }

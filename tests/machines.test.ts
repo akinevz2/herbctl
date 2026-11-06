@@ -634,14 +634,22 @@ describe("floatUnfocus ($Mod-x port)", () => {
         ]);
     });
 
-    test("tiling focused + visible float -> layer switch + jumpto + hc_center root (focus only, no un-float)", async () => {
+    test("tiling focused + visible float -> recall (switch + jumpto + hc_center root), then the tiling window becomes a top-left quarter companion float", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x1000001"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
+            // the tiling window that becomes the companion float
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
+            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr theme\\.floating\\.border_width$", "0", "2"],
+            ["^attr theme\\.floating\\.padding_left$", "0", "0"],
+            ["^attr theme\\.floating\\.padding_top$", "0", "0"],
+            ["^attr theme\\.floating\\.title_height$", "0", "20"],
+            ["^attr theme\\.floating\\.title_depth$", "0", "2"],
         ]);
         await floatUnfocus();
         expect(log()).toEqual([
@@ -650,9 +658,24 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "clients.0x1000001.floating"],
             ["attr", "clients.0x1000001.minimized"],
             ["attr", "tags.focus.floating_focused"],
+            ["attr", "clients.focus.winid"], // the companion capture
             ["attr", "tags.focus.floating_focused", "on"],
             ["jumpto", "0x1000001"],
             [`${FIX}/hc_center`, "root"],
+            // companion float: register chain, then the top-left
+            // quarter rect (960x540 = half work area; +2+24 = the
+            // floating deco margins — the outline sits flush at 0,0)
+            ["chain",
+                ",", "attr", "clients.0x1000002.fullscreen", "off",
+                ",", "attr", "clients.0x1000002.pseudotile", "off",
+                ",", "attr", "clients.0x1000002.floating", "on"],
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating.border_width"],
+            ["attr", "theme.floating.padding_left"],
+            ["attr", "theme.floating.padding_top"],
+            ["attr", "theme.floating.title_height"],
+            ["attr", "theme.floating.title_depth"],
+            [`${FIX}/hc_resize`, "0x1000002", "960x540+2+24"],
         ]);
     });
 
@@ -662,6 +685,7 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^list_clients --tag=work$", "0", "0x1000003"],
             ["^attr clients\\.0x1000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
         ]);
         await floatUnfocus();
@@ -670,6 +694,7 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000003.floating"],
             ["attr", "tags.focus.floating_focused"],
+            ["attr", "clients.focus.winid"], // the companion capture
             ["attr", "tags.focus.floating_focused", "on"], // fails: no floats
         ]);
     });
