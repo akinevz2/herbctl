@@ -1,6 +1,6 @@
 {
   "name": "herbctl",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "kine's herbstluftwm controller. window manager optimised commands",
   "author": "Kirill <kine> Nevzorov",
   "email": "akinevz@outlook.com",

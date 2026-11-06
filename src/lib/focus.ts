@@ -127,11 +127,15 @@ export async function floatFocus(): Promise<void> {
 //
 //   floating_focused FALSE (the tiling layer owns focus):
 //     the focused tiling window — captured first — becomes a small
-//       companion float UNCONDITIONALLY: half width × half height of
-//       the work area, its full outline parked flush in the top-left
-//       corner (content rect inset by the theme.floating deco
-//       margins — the deterministic margin source; the live
-//       decoration read races hlwm's async float-deco apply).
+//       companion float UNCONDITIONALLY. Sizing runs BEFORE the
+//       corner move: hc_resize frame stretches the fresh float
+//       deco-flush onto its old tile rect (the tiled size), then any
+//       dimension larger than half the work area comes DOWN to half
+//       (never up — smaller windows keep their adopted size), and the
+//       capped rect is re-issued flush in the top-left corner (content
+//       rect inset by the theme.floating deco margins — the
+//       deterministic margin source; the live decoration read races
+//       hlwm's async float-deco apply).
 //     a pre-existing float (the pre-scanned wid) -> recall it: focus
 //       ONLY, no un-float — floating_focused on, jumpto, then
 //       hc_center root.
@@ -185,14 +189,19 @@ export async function floatUnfocus(): Promise<void> {
 
     // the tiling layer owns focus: the focused tiling window —
     // captured before anything moves focus — becomes a small companion
-    // float UNCONDITIONALLY: half width × half height of the work
-    // area, its full outline parked flush in the top-left corner. The
-    // content rect is inset by the floating deco margins (theme.floating
-    // reads, the deterministic margin source: the live decoration read
-    // races hlwm's async float-deco apply) so the WINDOW's x/y offsets
-    // are zero, borders and title included. Unconditional — the old
-    // ordering ran the companion only after a successful recall, which
-    // made the key a silent no-op on a tag without floats.
+    // float UNCONDITIONALLY (the old ordering ran it only after a
+    // successful recall, which made the key a silent no-op on a tag
+    // without floats). Sizing runs BEFORE the corner move: hc_resize
+    // frame first stretches the fresh float deco-flush onto its old
+    // tile rect (the size the window had while tiled), then any
+    // dimension LARGER than half the work area comes DOWN to half
+    // (never up — a window already smaller than a quarter of the
+    // screen keeps its adopted size), and the capped rect is re-issued
+    // flush in the top-left corner. The content rect is inset by the
+    // floating deco margins (theme.floating reads, the deterministic
+    // margin source: the live decoration read races hlwm's async
+    // float-deco apply) so the WINDOW's x/y offsets are zero, borders
+    // and title included.
     const tilingWid = await attrRaw("clients.focus.winid");
     if (tilingWid) {
         await hc(
@@ -201,9 +210,27 @@ export async function floatUnfocus(): Promise<void> {
             ",", "attr", `clients.${tilingWid}.pseudotile`, "off",
             ",", "attr", `clients.${tilingWid}.floating`, "on",
         );
+        await helper("hc_resize", [tilingWid, "frame"]);
         const rootGeom = await attrRaw("tags.focus.tiling.root.content_geometry");
         const rm = rootGeom.match(/^(\d+)x(\d+)([+-]\d+)([+-]\d+)$/);
-        if (rm) {
+        const geo = await attrRaw(`clients.${tilingWid}.floating_geometry`);
+        const gm = geo.match(/^(\d+)x(\d+)/);
+        let w = 0;
+        let h = 0;
+        if (gm) {
+            w = Number(gm[1]);
+            h = Number(gm[2]);
+            if (rm) {
+                // cap at the quarter screen — shrink-only, never grow
+                w = Math.min(w, Math.floor(Number(rm[1]) / 2));
+                h = Math.min(h, Math.floor(Number(rm[2]) / 2));
+            }
+        } else if (rm) {
+            // no adopted size readable — fall back to the quarter rect
+            w = Math.floor(Number(rm[1]) / 2);
+            h = Math.floor(Number(rm[2]) / 2);
+        }
+        if (w > 0 && h > 0) {
             const numOr = (s: string, d: number): number => {
                 const n = Number(s);
                 return Number.isFinite(n) ? n : d;
@@ -213,8 +240,6 @@ export async function floatUnfocus(): Promise<void> {
             const top = Math.max(0, bw + numOr(await attrRaw("theme.floating.padding_top"), 0)
                 + numOr(await attrRaw("theme.floating.title_height"), 0)
                 + numOr(await attrRaw("theme.floating.title_depth"), 0));
-            const w = Math.floor(Number(rm[1]) / 2);
-            const h = Math.floor(Number(rm[2]) / 2);
             await helper("hc_resize", [tilingWid, `${w}x${h}+${left}+${top}`]);
         }
     }

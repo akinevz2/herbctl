@@ -639,6 +639,9 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            // the adopted (fill-to-frame) size — larger than the
+            // quarter screen in both dimensions -> capped down
+            ["^attr clients\\.0x1000002\\.floating_geometry$", "0", "1500x900+10+40"],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -654,14 +657,19 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"], // the companion capture
             // companion float FIRST (unconditional): register chain,
-            // then the top-left quarter rect (960x540 = half work
-            // area; +2+24 = the floating deco margins — the outline
-            // sits flush at 0,0)
+            // then the size pass — hc_resize frame adopts the tiled
+            // size (deco-flush onto the old tile rect), the read-back
+            // is capped at the quarter screen (960x540 = half work
+            // area; 1500x900 comes DOWN), and the capped rect is
+            // re-issued at the top-left corner (+2+24 = the floating
+            // deco margins — the outline sits flush at 0,0)
             ["chain",
                 ",", "attr", "clients.0x1000002.fullscreen", "off",
                 ",", "attr", "clients.0x1000002.pseudotile", "off",
                 ",", "attr", "clients.0x1000002.floating", "on"],
+            [`${FIX}/hc_resize`, "0x1000002", "frame"],
             ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "clients.0x1000002.floating_geometry"],
             ["attr", "theme.floating.border_width"],
             ["attr", "theme.floating.padding_left"],
             ["attr", "theme.floating.padding_top"],
@@ -684,6 +692,7 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr clients\\.0x1000003\\.floating_geometry$", "0", "1600x1000+6+35"],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -701,16 +710,60 @@ describe("floatUnfocus ($Mod-x port)", () => {
                 ",", "attr", "clients.0x1000003.fullscreen", "off",
                 ",", "attr", "clients.0x1000003.pseudotile", "off",
                 ",", "attr", "clients.0x1000003.floating", "on"],
+            [`${FIX}/hc_resize`, "0x1000003", "frame"],
             ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "clients.0x1000003.floating_geometry"],
             ["attr", "theme.floating.border_width"],
             ["attr", "theme.floating.padding_left"],
             ["attr", "theme.floating.padding_top"],
             ["attr", "theme.floating.title_height"],
             ["attr", "theme.floating.title_depth"],
-            [`${FIX}/hc_resize`, "0x1000003", "960x540+2+24"],
+            [`${FIX}/hc_resize`, "0x1000003", "960x540+2+24"], // 1600x1000 capped down
             // the companion IS the float session's focus (the yank
             // convention: floating on + floating_focused on) — no
             // jumpto, no hc_center
+            ["attr", "tags.focus.floating_focused", "on"],
+        ]);
+    });
+
+    test("companion smaller than a quarter screen -> keeps its adopted size, corner move only (shrink-only, never grow)", async () => {
+        scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
+            ["^list_clients --tag=work$", "0", "0x1000009"],
+            ["^attr clients\\.0x1000009\\.floating$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000009"],
+            ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
+            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr clients\\.0x1000009\\.floating_geometry$", "0", "800x400+10+40"],
+            ["^attr theme\\.floating\\.border_width$", "0", "2"],
+            ["^attr theme\\.floating\\.padding_left$", "0", "0"],
+            ["^attr theme\\.floating\\.padding_top$", "0", "0"],
+            ["^attr theme\\.floating\\.title_height$", "0", "20"],
+            ["^attr theme\\.floating\\.title_depth$", "0", "2"],
+        ]);
+        await floatUnfocus();
+        expect(log()).toEqual([
+            ["attr", "tags.focus.name"],
+            ["list_clients", "--tag=work"],
+            ["attr", "clients.0x1000009.floating"],
+            ["attr", "tags.focus.floating_focused"],
+            ["attr", "clients.focus.winid"],
+            ["chain",
+                ",", "attr", "clients.0x1000009.fullscreen", "off",
+                ",", "attr", "clients.0x1000009.pseudotile", "off",
+                ",", "attr", "clients.0x1000009.floating", "on"],
+            [`${FIX}/hc_resize`, "0x1000009", "frame"],
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "clients.0x1000009.floating_geometry"],
+            ["attr", "theme.floating.border_width"],
+            ["attr", "theme.floating.padding_left"],
+            ["attr", "theme.floating.padding_top"],
+            ["attr", "theme.floating.title_height"],
+            ["attr", "theme.floating.title_depth"],
+            // 800x400 is under the quarter screen in both dimensions —
+            // kept, only the corner move is issued
+            [`${FIX}/hc_resize`, "0x1000009", "800x400+2+24"],
             ["attr", "tags.focus.floating_focused", "on"],
         ]);
     });
