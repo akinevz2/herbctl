@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, getDedeck } from "../lib/chains.js";
 
-export default navCommand("get-dedeck", '[$ModShift-d] Count-gated layout mix, else remove the focused frame', getDedeck);
+export default navCommand("get-dedeck", '[$ModShift-d] Count-gated mix, else remove frame', getDedeck);

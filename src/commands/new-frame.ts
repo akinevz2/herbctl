@@ -2,4 +2,4 @@
 // (see src/lib/chains.ts for the port and the source binding).
 import { navCommand, newFrame } from "../lib/chains.js";
 
-export default navCommand("new-frame", '[$ModShift-t frame half] Split auto + cycle_frame only when the frame holds windows (dots chain the $TERMINAL spawn)', newFrame);
+export default navCommand("new-frame", '[$ModShift-t] Split auto + cycle_frame if windows (dots chain spawn)', newFrame);
