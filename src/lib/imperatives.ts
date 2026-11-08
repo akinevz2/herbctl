@@ -68,3 +68,18 @@ export async function removeEmptyFrame(): Promise<void> {
         await hc("remove");
     }
 }
+
+/**
+ * The reload composition: `herbstclient reload` (kills the bar daemons
+ * — polyframes restarts with polybar), plus `reload_theme --force` when
+ * the helper is found in the dots helper dir (hc.ts helperDir() — the
+ * same place hc_center resolves from). The theme reload runs after the
+ * WM reload so the fresh session picks up the theme, not the stale one.
+ * Fail-soft: a missing helper or a failed reload resolves false — the
+ * verb exits 1 (navCommand), the keybind never wedges.
+ */
+export async function reload(): Promise<boolean> {
+    const themeOk = await helper("reload_theme", ["--force"]);
+    const hcOk = await hc("reload") !== null;
+    return hcOk && themeOk;
+}

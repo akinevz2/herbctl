@@ -28,6 +28,7 @@ import splitRightCycle from "./commands/split-right-cycle.js";
 import splitRightFocus from "./commands/split-right-focus.js";
 import xkillOrClose from "./commands/xkill-or-close.js";
 import zoomToggle from "./commands/zoom.js";
+import reload from "./commands/reload.js";
 
 import { name, version, description } from "../package.json" with { type: "json" };
 
@@ -41,7 +42,7 @@ for (const command of [
   getSouth, getForward, getDeck, getDedeck, explodeFrame, focusFrameLeft,
   shiftUp, rotateTree, shiftDown, splitDown, shiftLeft, shiftRight,
   newFrame, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
-  closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus,
+  closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus, reload,
 ]) {
   cli.command(command);
 }
