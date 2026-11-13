@@ -95,18 +95,13 @@ afterEach(() => {
 
 // zoomToggle — the hc_zoom press-state machine.
 describe("zoomToggle (hc_zoom port)", () => {
-    test("(a) tiled -> flags off, float on, centered in root, registered, deco-flush fill + fit guard, under ONE lock", async () => {
+    test("(a) tiled -> the corner machine (flash-free: geometry pre-set, then float-on), registered, under zoom's outer lock", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000001"],
             ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "false"],
             ["^attr theme\\.floating\\.$", "0", THEME_TREE],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1000x800+0+0"],
-            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1000x800+0+0")],
-            ["^attr clients\\.0x1000001\\.floating_geometry$", "0", "996x748+2+37"],
-            ["^attr clients\\.0x1000001\\.content_geometry$", "0", "996x748+2+37"],
-            ["^attr clients\\.0x1000001\\.$", "0", CLIENT_TREE_FLOATING("996x748+2+26")],
-            ["^attr clients\\.0x1000001\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
         ]);
         expect(await zoomToggle()).toBe(true);
         expect(log()).toEqual([
@@ -116,29 +111,21 @@ describe("zoomToggle (hc_zoom port)", () => {
             ["attr", "clients.0x1000001.floating"],
             ["set_attr", "clients.0x1000001.fullscreen", "off"],
             ["set_attr", "clients.0x1000001.pseudotile", "off"],
-            ["set_attr", "clients.0x1000001.floating", "on"],
-            // placeCenteredIn (root): geometry, deco margins, adopted
-            // size, the placement write, the stable reconcile read
+            // the corner machine (no current-size read: the window
+            // BECOMES the quadrant): inner 996x774 -> 498x387 at the
+            // top-left inner corner (+2+24)
             ["attr", "tags.focus.tiling.root.content_geometry"],
             ["attr", "theme.floating."],
-            ["attr", "clients.0x1000001.floating_geometry"],
-            ["set_attr", "clients.0x1000001.floating_geometry", "996x748+2+37"],
-            ["attr", "clients.0x1000001.content_geometry"],
-            // the float-session register (the historical hc_center tail)
+            // PRE-SET the corner geometry BEFORE the float-on (the
+            // flash fix: the first floating paint already sits in the
+            // quadrant)
+            ["set_attr", "clients.0x1000001.floating_geometry", "498x387+2+24"],
+            ["set_attr", "clients.0x1000001.floating", "on"],
+            // the re-assert rides out hlwm's async apply
+            ["set_attr", "clients.0x1000001.floating_geometry", "498x387+2+24"],
+            // the float-session register
             ["chain", ".", "try", "set_attr", "tags.focus.floating_focused", "on", ".",
              "jumpto", "0x1000001", ".", "bring", "0x1000001"],
-            // resizeFill frame: floating client tree, parent frame,
-            // target content rect, deco margins, the fill write
-            ["attr", "clients.0x1000001."],
-            ["attr", "clients.0x1000001.parent_frame."],
-            ["attr", "tags.focus.tiling.root."],
-            ["attr", "theme.floating."],
-            ["set_attr", "clients.0x1000001.floating_geometry", "996x774+2+24"],
-            // fitTo root: geometry, margins, current size — already
-            // fitting, idempotent, no write
-            ["attr", "tags.focus.tiling.root.content_geometry"],
-            ["attr", "theme.floating."],
-            ["attr", "clients.0x1000001.floating_geometry"],
             ["unlock"],
         ]);
     });
@@ -233,18 +220,15 @@ describe("floatYank (hc_floatx port)", () => {
         ]);
     });
 
-    test("yank: no floats to focus + populated frame -> float + place centered in root + register, under ONE lock, frame left alone", async () => {
+    test("no floats + populated frame -> no yank (the float-add keys own float adds): fall to the tidying tail (use_previous + bring)", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|1|grid|work|800x600+6+35|false"],
+            ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x1000003"],
             ["^attr clients\\.0x1000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""], // re-entry fails: no floats
-            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
-            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1000x800+0+0"],
-            ["^attr clients\\.0x1000003\\.floating_geometry$", "0", "500x400+250+211"],
-            ["^attr clients\\.0x1000003\\.content_geometry$", "0", "500x400+250+211"],
         ]);
         await floatYank();
         expect(log()).toEqual([
@@ -255,18 +239,17 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000003.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
-            ["attr", "tags.focus.floating_focused", "on"], // fails
-            ["lock"], // the yank's own lock (nested, refcount-balanced)
-            ["set_attr", "clients.0x1000003.floating", "on"], // yank
-            ["attr", "tags.focus.tiling.root.content_geometry"],
-            ["attr", "theme.floating."],
-            ["attr", "clients.0x1000003.floating_geometry"],
-            ["set_attr", "clients.0x1000003.floating_geometry", "500x400+250+211"],
-            ["attr", "clients.0x1000003.content_geometry"],
-            ["chain", ".", "try", "set_attr", "tags.focus.floating_focused", "on", ".",
-             "jumpto", "0x1000003", ".", "bring", "0x1000003"],
-            ["attr", "tags.focus.floating_focused", "on"], // the machine's own register write
-            ["unlock"],
+            ["attr", "tags.focus.floating_focused", "on"], // fails: no floats
+            // tidyNoFloats (no yank — the populated frame is LEFT alone)
+            ["attr", "tags.focus.name"],
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
+            // single frame, populated -> nothing to tidy: use_previous
+            ["use_previous"],
+            ["bring", "0x1000003"],
             ["unlock"],
         ]);
     });
@@ -380,6 +363,7 @@ describe("floatYank (hc_floatx port)", () => {
 
     test("tidying remove: empty frame, >1 frame, tag still holds clients -> remove", async () => {
         scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x1000008"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|2|grid|work|800x600+6+35|false"],
             ["^list_clients --tag=work$", "0", "0x1000008"],
@@ -398,7 +382,14 @@ describe("floatYank (hc_floatx port)", () => {
             ["attr", "clients.0x1000008.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
-            ["attr", "tags.by-name.work.client_count"], // tag_total
+            // tidyNoFloats: re-reads the tag name + the tidying state
+            ["attr", "tags.focus.name"],
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
+            ["attr", "tags.by-name.work.client_count"], // tag_total -> remove
             ["remove"],
             ["unlock"],
         ]);
@@ -406,6 +397,7 @@ describe("floatYank (hc_floatx port)", () => {
 
     test("tidying reveal: nothing tiled, minimized clients exist -> reveal chain over the tag's clients", async () => {
         scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x1000009"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|0|2|grid|work|800x600+6+35|false"],
             ["^list_clients --tag=work$", "0", "0x1000009"],
@@ -425,6 +417,13 @@ describe("floatYank (hc_floatx port)", () => {
             ["attr", "clients.0x1000009.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
+            // tidyNoFloats: re-reads the tag name + the tidying state
+            ["attr", "tags.focus.name"],
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
             ["list_clients", "--tag=work"], // has_minimized re-enumerates
             ["chain", ",", "attr", "clients.0x1000009.minimized"], // has_minimized
             ["list_clients", "--tag=work"], // the reveal re-enumerates
@@ -435,6 +434,7 @@ describe("floatYank (hc_floatx port)", () => {
 
     test("polyframes hidden: max layout + minimized clients + empty frame -> spawn polyframes hidden", async () => {
         scenario([
+            ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x100000c"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|1|max|work|800x600+6+35|false"],
             ["^list_clients --tag=work$", "0", "0x100000c"],
@@ -454,6 +454,13 @@ describe("floatYank (hc_floatx port)", () => {
             ["attr", "clients.0x100000c.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
+            // tidyNoFloats: re-reads the tag name + the tidying state
+            ["attr", "tags.focus.name"],
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
             ["attr", "tags.by-name.work.client_count"], // tag_total == 0 -> no remove
             ["list_clients", "--tag=work"], // has_minimized re-enumerates
             ["chain", ",", "attr", "clients.0x100000c.minimized"], // has_minimized
@@ -464,6 +471,7 @@ describe("floatYank (hc_floatx port)", () => {
 
     test("fallback: single empty frame, nothing hidden -> use_previous + bring the original client", async () => {
         scenario([
+            ["^attr tags\.focus\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x100000a"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|1|grid|work|800x600+6+35|false"],
             ["^list_clients --tag=work$", "0", "0x100000a"],
@@ -482,6 +490,13 @@ describe("floatYank (hc_floatx port)", () => {
             ["attr", "clients.0x100000a.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
+            // tidyNoFloats: re-reads the tag name + the tidying state
+            ["attr", "tags.focus.name"],
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
             ["attr", "tags.by-name.work.client_count"], // tag_total == 0 -> no remove
             ["use_previous"],
             ["bring", "0x100000a"],
@@ -548,20 +563,18 @@ describe("floatFocus (hc_focus port)", () => {
         ]);
     });
 
-    test("(g) switch fails + max layout -> float on, place centered in frame, foreground, vacated frame removed, fit guard, algorithm max — ONE lock", async () => {
+    test("(g) switch fails (no floats) -> NO lift: fall to the tidying machinery — empty frame removed", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000003"],
             ["^attr clients\\.0x2000003\\.floating$", "0", "false"], // no visible float
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""], // re-entry fails
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "max"],
             ["^attr clients\\.focus\\.winid$", "0", "0x2000003"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
-            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.content_geometry$", "0", "1000x800+0+0"],
-            ["^attr clients\\.0x2000003\\.floating_geometry$", "0", "500x400+250+211"],
-            ["^attr clients\\.0x2000003\\.content_geometry$", "0", "500x400+250+211"],
+            // the tidyNoFloats state chain (empty focused frame, 2
+            // frames, the tag still holds clients -> remove)
+            ["^chain , attr tags\\.focus\\.curframe_wcount , echo \\|", "0", "0|0|2|max|work|"],
+            ["^attr tags\\.by-name\\.work\\.client_count$", "0", "3"],
         ]);
         await floatFocus();
         expect(log()).toEqual([
@@ -569,71 +582,54 @@ describe("floatFocus (hc_focus port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x2000003.floating"],
             ["attr", "tags.focus.floating_focused"],
-            ["attr", "tags.focus.floating_focused", "on"], // fails
-            ["attr", "tags.focus.tiling.focused_frame.algorithm"], // algo == max
-            ["attr", "clients.focus.winid"],
-            ["lock"], // ONE lock around the whole lift
-            ["chain", ",", "attr", "clients.0x2000003.fullscreen", "off",
-             ",", "attr", "clients.0x2000003.pseudotile", "off"],
-            ["set_attr", "clients.0x2000003.floating", "on"],
-            // placeCenteredIn (focused frame): geometry, deco margins,
-            // adopted size, the placement write, the stable reconcile
-            ["attr", "tags.focus.tiling.focused_frame.content_geometry"],
-            ["attr", "theme.floating."],
-            ["attr", "clients.0x2000003.floating_geometry"],
-            ["set_attr", "clients.0x2000003.floating_geometry", "500x400+250+211"],
-            ["attr", "clients.0x2000003.content_geometry"],
-            // the float-session foreground (the historical hc_center tail)
-            ["chain", ".", "try", "set_attr", "tags.focus.floating_focused", "on", ".",
-             "jumpto", "0x2000003", ".", "bring", "0x2000003"],
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // vcc == 0
-            ["remove"], // Mod-f owns frame closing here
-            // fitTo frame: geometry, margins, size — already fitting,
-            // idempotent, no write
-            ["attr", "tags.focus.tiling.focused_frame.content_geometry"],
-            ["attr", "theme.floating."],
-            ["attr", "clients.0x2000003.floating_geometry"],
-            ["unlock"],
-            ["attr", "tags.focus.tiling.focused_frame.algorithm", "max"], // the tail
+            ["attr", "tags.focus.floating_focused", "on"], // fails: no floats
+            // NO lift — the float-add keys own float adds; tidy instead
+            ["attr", "tags.focus.name"],
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
+            ["attr", "tags.by-name.work.client_count"], // tag_total -> remove
+            ["remove"], // the empty focused frame
         ]);
     });
 
-    test("(g) vacated frame still holds clients -> no remove", async () => {
+    test("(g) vacated frame still holds clients -> the tidying keeps it (no remove)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000003"],
             ["^attr clients\\.0x2000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "max"],
             ["^attr clients\\.focus\\.winid$", "0", "0x2000003"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
-            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.content_geometry$", "0", "1000x800+0+0"],
-            ["^attr clients\\.0x2000003\\.floating_geometry$", "0", "500x400+250+211"],
-            ["^attr clients\\.0x2000003\\.content_geometry$", "0", "500x400+250+211"],
+            // the tidyNoFloats state chain: populated frame, 1 frame,
+            // grid algo -> nothing to tidy
+            ["^chain , attr tags\\.focus\\.curframe_wcount , echo \\|", "0", "1|1|1|grid|work|"],
         ]);
         await floatFocus();
         const entries = log();
         expect(entries).not.toContainEqual(["remove"]);
-        expect(entries.slice(-6)).toEqual([
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // vcc == 1
-            ["attr", "tags.focus.tiling.focused_frame.content_geometry"], // fitTo
-            ["attr", "theme.floating."],
-            ["attr", "clients.0x2000003.floating_geometry"],
-            ["unlock"],
-            ["attr", "tags.focus.tiling.focused_frame.algorithm", "max"], // the tail
+        expect(entries.slice(-3)).toEqual([
+            ["attr", "tags.focus.name"], // tidyNoFloats
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
+            ["use_previous"], // nothing to tidy: the populated frame stays
         ]);
     });
 
-    test("(g) non-max layout -> no lift, just the algorithm=max tail", async () => {
+    test("(g) non-max layout -> the same tidying fallthrough (use_previous)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000004"],
             ["^attr clients\\.0x2000004\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "grid"],
+            ["^attr clients\\.focus\\.winid$", "0", "0x2000004"],
+            ["^chain , attr tags\\.focus\\.curframe_wcount , echo \\|", "0", "1|1|1|grid|work|"],
         ]);
         await floatFocus();
         expect(log()).toEqual([
@@ -642,8 +638,13 @@ describe("floatFocus (hc_focus port)", () => {
             ["attr", "clients.0x2000004.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "tags.focus.floating_focused", "on"], // fails
-            ["attr", "tags.focus.tiling.focused_frame.algorithm"], // grid != max
-            ["attr", "tags.focus.tiling.focused_frame.algorithm", "max"], // tail only
+            ["attr", "tags.focus.name"], // tidyNoFloats
+            ["chain", ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+             ",", "attr", "tags.focus.name"],
+            ["use_previous"], // populated frame, grid: nothing to tidy
         ]);
     });
 

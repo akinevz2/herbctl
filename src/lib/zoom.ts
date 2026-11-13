@@ -2,7 +2,9 @@
 // focused window (~/dots/herbst_focus/.local/bin/hc_zoom, bound as
 // $ModCtrl-f in dots).
 //
-//   press 1  tiled      -> float it, stretched to fill the frame
+//   press 1  tiled      -> float it INTO THE CORNER (the ModCtrl-z
+//                          machine shared here — the flash-free order:
+//                          geometry pre-set, then float-on)
 //   press 2  floating   -> maximize onto a dedicated <tag>-max tag
 //   press 3  maximized  -> restore to the original tag/frame
 //
@@ -21,8 +23,8 @@
 // under ONE lock.
 
 import { attr, attrRaw, hc, helper, setAttr } from "./hc.js";
-import { fitTo, placeCenteredIn } from "./geometry.js";
-import { resizeFill } from "./resize.js";
+import { computeQuadrant } from "./geometry.js";
+
 
 export async function zoomToggle(): Promise<boolean> {
     const wid = await attrRaw("clients.focus.winid");
@@ -49,25 +51,27 @@ export async function zoomToggle(): Promise<boolean> {
             // (b) floating, not maximized -> dedicated max tag
             await helper("hc_maximize", [wid]);
         } else {
-            // (a) tiled -> float the focused window directly: clear
-            // stray fullscreen/pseudotile flags, float it ON (the
-            // floating theme's decoration is what the geometry math
-            // measures), place it centered inside the workspace rect,
-            // foreground the float session (the historical
-            // hc_center closing tail), then the deco-flush fill to the
-            // frame content rect and the fit guard.
+            // (a) tiled -> DELEGATE TO THE CORNER MACHINE: the float-add
+            // (ModCtrl-z's machine, shared here) with the flash fix —
+            // pre-set the corner geometry BEFORE the float-on so the
+            // first floating paint already sits in the quadrant; the
+            // re-assert rides out hlwm's async apply. Already under
+            // zoom's outer lock — the corner ops take no lock of their
+            // own.
             await setAttr(`clients.${wid}.fullscreen`, "off");
             await setAttr(`clients.${wid}.pseudotile`, "off");
+            const want = await computeQuadrant(wid, "root");
+            await setAttr(`clients.${wid}.floating_geometry`,
+                `${want.width}x${want.height}+${want.x}+${want.y}`);
             await setAttr(`clients.${wid}.floating`, "on");
-            await placeCenteredIn(wid, "tags.focus.tiling.root.content_geometry");
+            await setAttr(`clients.${wid}.floating_geometry`,
+                `${want.width}x${want.height}+${want.x}+${want.y}`);
             await hc(
                 "chain", ".",
                 "try", "set_attr", "tags.focus.floating_focused", "on", ".",
                 "jumpto", wid, ".",
                 "bring", wid,
             );
-            await resizeFill(wid, "frame");
-            await fitTo(wid, "root");
         }
     } finally {
         await hc("unlock");

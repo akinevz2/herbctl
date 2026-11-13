@@ -134,67 +134,85 @@ export async function floatYank(): Promise<void> {
         }
 
         // Re-entry failed: no non-minimized float exists.
-        if (Number(frameCc) > 0) {
-            // YANK: float the focused client, center it in the monitor's
-            // geometry at its current size, INTO the float session. The
-            // (now possibly empty) frame is deliberately LEFT ALONE.
-            // ONE lock (the native machines take none of their own).
-            // The yank target is the FOCUSED window (orig may lag).
-            await hc("lock");
-            try {
-                const yankWid = orig || (await attrRaw("clients.focus.winid"));
-                if (yankWid) {
-                    await setAttr(`clients.${yankWid}.floating`, "on");
-                    await placeCenteredIn(yankWid, "tags.focus.tiling.root.content_geometry");
-                    // Foreground the float session (the historical hc_center
-                    // closing tail), then the machine's own register
-                    // write — inside the lock, as the script wrote it
-                    // (idempotent on the chain's try-write).
-                    await hc(
-                        "chain", ".",
-                        "try", "set_attr", "tags.focus.floating_focused", "on", ".",
-                        "jumpto", yankWid, ".",
-                        "bring", yankWid,
-                    );
-                    await hc("attr", "tags.focus.floating_focused", "on");
-                }
-            } finally {
-                await hc("unlock");
-            }
-            return;
-        }
+        // ModCtrl-z owns float ADDS now — no yank: fall straight to
+        // the tidying machinery (shared with float-focus's no-floats
+        // path).
+        await tidyNoFloats(orig);
+    } finally {
+        await hc("unlock");
+    }
+}
 
-        // Empty frame, no floats: tidying.
-        if (Number(frameCount) > 1) {
-            if (frameClients === "0" && (await tagTotal()) !== "0") {
-                await hc("remove");
-                return;
-            }
-            // Hidden windows exist and nothing is tiled in the focused
-            // frame: reveal them.
-            if ((await hasMinimizedClients()) && Number(frameCc) === 0) {
-                const wids = await listClientsByTag(tag);
-                await hc(
-                    "chain",
-                    ...wids.flatMap((w) => [",", "attr", `clients.${w}.minimized`, "off"]),
-                );
-                return;
-            }
-        }
+/**
+ * tidyNoFloats — the no-floats-to-focus tail, shared by float-yank
+ * and float-focus: with nothing floating to focus, tidy the tiling
+ * layer instead —
+ *   empty focused frame, >1 frame, tag still holds clients -> remove;
+ *   hidden (minimized) clients + empty focused frame     -> reveal;
+ *   max layout + minimized clients + empty frame        -> polyframes
+ *                                                          hidden;
+ *   otherwise                                           -> use_previous
+ *                                                          (+ bring
+ *                                                          the origin).
+ * Reads its own state (the caller hands only the pre-read origin wid).
+ */
+export async function tidyNoFloats(orig?: string): Promise<void> {
+    const tag = (await attrRaw("tags.focus.name")) || "";
+    const stateOut = (await hc(
+        "chain",
+        ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
+        ",", "attr", "tags.focus.tiling.focused_frame.client_count", ",", "echo", "|",
+        ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
+        ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
+        ",", "attr", "tags.focus.name",
+    ))?.stdout ?? "";
+    const parts = stateOut.replace(/\n/g, "").split("|");
+    const frameClients = parts[0] || "0";
+    const frameCc = parts[1] || "0";
+    const frameCount = parts[2] || "1";
+    const algo = parts[3] || "";
 
+    const tagTotal = async (): Promise<string> =>
+        tag ? ((await attrRaw(`tags.by-name.${tag}.client_count`)) || "0") : "0";
+
+    const hasMinimizedClients = async (): Promise<boolean> => {
+        if (!tag) return false;
+        const wids = await listClientsByTag(tag);
+        if (wids.length === 0) return false;
+        const r = await hc(
+            "chain",
+            ...wids.flatMap((w) => [",", "attr", `clients.${w}.minimized`]),
+        );
+        return r?.stdout.includes("true") ?? false;
+    };
+
+    if (Number(frameCount) > 1) {
         if (frameClients === "0" && (await tagTotal()) !== "0") {
             await hc("remove");
             return;
         }
-
-        if (algo === "max" && (await hasMinimizedClients()) && Number(frameClients) < 1) {
-            await hc("spawn", `${helperDir()}/polyframes hidden`);
+        // Hidden windows exist and nothing is tiled in the focused
+        // frame: reveal them.
+        if ((await hasMinimizedClients()) && Number(frameCc) === 0) {
+            const wids = await listClientsByTag(tag);
+            await hc(
+                "chain",
+                ...wids.flatMap((w) => [",", "attr", `clients.${w}.minimized`, "off"]),
+            );
             return;
         }
-
-        await hc("use_previous");
-        if (orig) await hc("bring", orig);
-    } finally {
-        await hc("unlock");
     }
+
+    if (frameClients === "0" && (await tagTotal()) !== "0") {
+        await hc("remove");
+        return;
+    }
+
+    if (algo === "max" && (await hasMinimizedClients()) && Number(frameClients) < 1) {
+        await hc("spawn", `${helperDir()}/polyframes hidden`);
+        return;
+    }
+
+    await hc("use_previous");
+    if (orig) await hc("bring", orig);
 }

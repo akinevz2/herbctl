@@ -32,6 +32,7 @@
 import { attrRaw, hc, setAttr } from "./hc.js";
 import { fitTo, placeCenteredIn } from "./geometry.js";
 import { firstVisibleFloat, floatFlagsChain } from "./imperatives.js";
+import { tidyNoFloats } from "./extracted.js";
 
 export async function floatFocus(): Promise<void> {
     const tag = await attrRaw("tags.focus.name");
@@ -68,45 +69,11 @@ export async function floatFocus(): Promise<void> {
             return;
         }
 
-        // g) the switch failed (no float to focus): float the current
-        // window — but ONLY in the max layout. ONE lock around the
-        // whole lift (float + place + register + close-vacated + fit):
-        // the native geometry machines take no locks of their own.
-        const algo = await attrRaw("tags.focus.tiling.focused_frame.algorithm");
-        if (algo === "max") {
-            const wid = await attrRaw("clients.focus.winid");
-            if (wid) {
-                await hc("lock");
-                try {
-                    await hc(
-                        "chain",
-                        ",", "attr", `clients.${wid}.fullscreen`, "off",
-                        ",", "attr", `clients.${wid}.pseudotile`, "off",
-                    );
-                    await setAttr(`clients.${wid}.floating`, "on");
-                    await placeCenteredIn(wid, "tags.focus.tiling.focused_frame.content_geometry");
-                    // Foreground the float session (the historical
-                    // hc_center closing tail).
-                    await hc(
-                        "chain", ".",
-                        "try", "set_attr", "tags.focus.floating_focused", "on", ".",
-                        "jumpto", wid, ".",
-                        "bring", wid,
-                    );
-                    // The lifted window vacated its tile — when the focused
-                    // frame reads zero clients now, close it (Mod-f's
-                    // register; removes the split).
-                    const vcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "1";
-                    if (vcc === "0") {
-                        await hc("remove");
-                    }
-                    await fitTo(wid, "frame");
-                } finally {
-                    await hc("unlock");
-                }
-            }
-        }
-        await hc("attr", "tags.focus.tiling.focused_frame.algorithm", "max");
+        // g) the switch failed (no float to focus): ModCtrl-z owns
+        // float ADDS — no lift here. Fall to the tidying machinery
+        // (shared with float-yank: remove the empty focused frame,
+        // reveal minimized clients, polyframes hidden, use_previous).
+        await tidyNoFloats();
         return;
     }
 
