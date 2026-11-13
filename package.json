@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@bunli/core": "latest",
-    "herbstutil": "^0.3.0"
+    "herbstutil": "github:akinevz2/herbstutil#main"
   },
   "devDependencies": {
     "@bunli/test": "latest",
@@ -59,7 +59,8 @@
     "bun": ">=1.2"
   },
   "trustedDependencies": [
-    "bun"
+    "bun",
+    "herbstutil"
   ],
   "bunli": {
     "entry": "./src/index.ts",

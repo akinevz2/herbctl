@@ -299,7 +299,7 @@ export async function closeWindow(): Promise<void> {
         "chain", "!", "lock",
         "!", "or",
         ".", "and", ",", "compare", "tags.focus.floating_focused", "=", "true",
-        ",", "attr", "clients.focus.floating", "off",
+        ",", "close",
         ".", "and", ",", "compare", "tags.focus.curframe_wcount", "=", "1",
         ",", "close_and_remove",
         ".", "close_or_remove",

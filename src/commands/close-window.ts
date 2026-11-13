@@ -3,4 +3,4 @@
 import { navCommand } from "../lib/nav-command.js";
 import { closeWindow } from "../lib/chains.js";
 
-export default navCommand("close-window", 'Un-float or close', closeWindow);
+export default navCommand("close-window", 'Close and remove frame', closeWindow);

@@ -399,15 +399,17 @@ describe("pure keybind chains", () => {
         ]);
     });
 
-    // floating.sh $Mod-q
-    test("closeWindow issues the un-float-or-close chain", async () => {
+    // floating.sh $Mod-q — the user-rewritten close semantics: on the
+    // float layer, close; a frame holding exactly one client closes
+    // WITH its frame; everything else falls to close_or_remove.
+    test("closeWindow issues the close / close-and-remove / close-or-remove chain", async () => {
         await closeWindow();
         expect(log()).toEqual([
             [
                 "chain", "!", "lock",
                 "!", "or",
                 ".", "and", ",", "compare", "tags.focus.floating_focused", "=", "true",
-                ",", "attr", "clients.focus.floating", "off",
+                ",", "close",
                 ".", "and", ",", "compare", "tags.focus.curframe_wcount", "=", "1",
                 ",", "close_and_remove",
                 ".", "close_or_remove",
