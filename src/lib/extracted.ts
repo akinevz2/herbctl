@@ -134,9 +134,45 @@ export async function floatYank(): Promise<void> {
         }
 
         // Re-entry failed: no non-minimized float exists.
-        // ModCtrl-z owns float ADDS now — no yank: fall straight to
-        // the tidying machinery (shared with float-focus's no-floats
-        // path).
+        if (Number(frameCc) > 0) {
+            // YANK (the exclusive-foreground add): float the focused
+            // client, center it in the monitor's geometry at its
+            // current size, INTO the float session — the newly floated
+            // window TAKES the session foreground (the register chain
+            // + the machine's own register write). ModCtrl-z's corner /
+            // companion machines are the ADDITIVE adds (no foreground
+            // claim); Mod-f's lift and this yank are the EXCLUSIVE
+            // FOREGROUND adds. The (now possibly empty) frame is
+            // deliberately LEFT ALONE — empty frames are only closed
+            // in the tidying branch. ONE lock (the native machines
+            // take none of their own). The yank target is the FOCUSED
+            // window (orig may lag).
+            await hc("lock");
+            try {
+                const yankWid = orig || (await attrRaw("clients.focus.winid"));
+                if (yankWid) {
+                    await setAttr(`clients.${yankWid}.floating`, "on");
+                    await placeCenteredIn(yankWid, "tags.focus.tiling.root.content_geometry");
+                    // Foreground the float session (the historical hc_center
+                    // closing tail), then the machine's own register
+                    // write — inside the lock, as the script wrote it
+                    // (idempotent on the chain's try-write).
+                    await hc(
+                        "chain", ".",
+                        "try", "set_attr", "tags.focus.floating_focused", "on", ".",
+                        "jumpto", yankWid, ".",
+                        "bring", yankWid,
+                    );
+                    await hc("attr", "tags.focus.floating_focused", "on");
+                }
+            } finally {
+                await hc("unlock");
+            }
+            return;
+        }
+
+        // Empty focused frame (or a lone frame): no floats to focus,
+        // nothing to yank — tidy the tiling layer instead.
         await tidyNoFloats(orig);
     } finally {
         await hc("unlock");

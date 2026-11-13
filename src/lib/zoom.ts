@@ -51,13 +51,15 @@ export async function zoomToggle(): Promise<boolean> {
             // (b) floating, not maximized -> dedicated max tag
             await helper("hc_maximize", [wid]);
         } else {
-            // (a) tiled -> DELEGATE TO THE CORNER MACHINE: the float-add
-            // (ModCtrl-z's machine, shared here) with the flash fix —
-            // pre-set the corner geometry BEFORE the float-on so the
-            // first floating paint already sits in the quadrant; the
-            // re-assert rides out hlwm's async apply. Already under
-            // zoom's outer lock — the corner ops take no lock of their
-            // own.
+            // (a) tiled -> the corner machine, EXCLUSIVE FOREGROUND:
+            // the window joins the float layer AND takes the session
+            // foreground (the register chain — the same exclusive-fore
+            // ground add Mod-f's lift and Mod-x's yank perform). The
+            // flash-free order: PRE-SET the corner geometry BEFORE the
+            // float-on so the first floating paint already sits in the
+            // quadrant; the re-assert rides out hlwm's async apply.
+            // Already under zoom's outer lock — the corner ops take no
+            // lock of their own.
             await setAttr(`clients.${wid}.fullscreen`, "off");
             await setAttr(`clients.${wid}.pseudotile`, "off");
             const want = await computeQuadrant(wid, "root");
