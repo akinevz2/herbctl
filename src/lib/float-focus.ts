@@ -44,7 +44,18 @@ export async function floatFocus(): Promise<void> {
         if ((await hc("attr", "tags.focus.floating_focused", "on")) !== null) {
             // c) switch succeeded. The PRE-SCANNED float wid is PRIMARY —
             // clients.focus may lag a settle-tick after the switch.
-            const fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            // SETTLE the client_count read: hlwm applies the layer
+            // switch asynchronously, and a too-early read can race it
+            // (misread 0 while the frame is still populating) and
+            // UN-FLOAT the float into a POPULATED frame. The bash
+            // script rode this out with ~40 ms of process-spawn
+            // latency per hc() round trip; re-read after a settle —
+            // un-float ONLY on a stable zero.
+            let fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            if (fcc === "0") {
+                await new Promise((r) => setTimeout(r, 80));
+                fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            }
             const wid = floatWid || (await attrRaw("clients.focus.winid"));
             if (fcc === "0") {
                 // e) un-float the float into the empty frame (no jumpto —

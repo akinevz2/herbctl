@@ -70,6 +70,21 @@ export function hasLayerMods(m: LayerMods): boolean {
 }
 
 /**
+ * withLock — ONE reference-counted WM lock around `op`. The verbs that
+ * own their modifier composition MANUALLY (corner: the flash fix needs
+ * the geometry pre-set before the float-on, inside the lock) build
+ * their sequence with this instead of withLayerMods.
+ */
+export async function withLock(op: () => Promise<void>): Promise<void> {
+    await hc("lock");
+    try {
+        await op();
+    } finally {
+        await hc("unlock");
+    }
+}
+
+/**
  * Run `op` composed with the layer modifiers, under ONE lock. Bare
  * (modifier-free) calls run op directly — no lock, no extra writes:
  * the byte-compatible atomic path.

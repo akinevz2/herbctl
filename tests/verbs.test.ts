@@ -162,41 +162,62 @@ describe("verb layer modifiers", () => {
             (corner as unknown as { handler: (ctx: unknown) => Promise<void> })
                 .handler({ flags: {}, positional: ["root"] }),
         ).rejects.toThrow("the client is tiled");
-        // the guard read is the only WM traffic — no geometry writes
+        // the guard read is the only WM traffic (under the lock the
+        // verb takes around its whole sequence) — no geometry writes
         expect(log()).toEqual([
             ["attr", "clients.focus.winid"],
+            ["lock"],
             ["attr", "clients.0x1000004.floating"],
+            ["unlock"],
         ]);
     });
 
-    test("corner --to-float on a tiled client: floats first, then pins (guard passes)", async () => {
+    test("corner --to-float on a tiled client: PRE-SET the corner geometry, then float on — the first floating paint already sits in the quadrant (no flash)", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000005"],
-            ["^attr clients\\.0x1000005\\.floating$", "0", "true"],
+            ["^attr clients\\.0x1000005\\.floating$", "0", "false"],
             ["^attr theme\\.floating\\.$", "0", THEME_TREE],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
-            ["^attr clients\\.0x1000005\\.floating_geometry$", "0", "960x540+2+24"],
-            ["^attr clients\\.0x1000005\\.content_geometry$", "0", "960x540+2+24"],
         ]);
         await (corner as unknown as { handler: (ctx: unknown) => Promise<void> })
             .handler({ flags: { "to-float": true }, positional: ["root"] });
         expect(log()).toEqual([
             ["attr", "clients.focus.winid"],
             ["lock"],
-            // --to-float: the pre-layer write (idempotent when already
-            // floating)
-            ["set_attr", "clients.0x1000005.floating", "on"],
-            // the guard read — floating is on now, it passes
+            // the floating probe (the manual --to-float branch)
             ["attr", "clients.0x1000005.floating"],
-            // the pin: half the inner rect at the top-left inner corner
-            // (958x527 = half of 1916x1054 clamped to the client's size
-            // hints by hlwm at write time; +2+24 = the deco margins) —
-            // the write is asserted twice riding out hlwm's async apply
+            // the quadrant target (tiled client: no current-size read —
+            // the window BECOMES the quadrant)
             ["attr", "tags.focus.tiling.root.content_geometry"],
             ["attr", "theme.floating."],
-            ["attr", "clients.0x1000005.floating_geometry"],
+            // PRE-SET the corner geometry BEFORE the float-on (the
+            // flash fix: floating on paints at the pre-set rect, not
+            // the stale pre-float geometry)
             ["set_attr", "clients.0x1000005.floating_geometry", "958x527+2+24"],
+            ["set_attr", "clients.0x1000005.floating", "on"],
+            // the re-assert rides out hlwm's async apply
             ["set_attr", "clients.0x1000005.floating_geometry", "958x527+2+24"],
+            ["unlock"],
+        ]);
+    });
+
+    test("corner on an already-floating client: pin only (the write asserted twice)", async () => {
+        scenario([
+            ["^attr clients\\.focus\\.winid$", "0", "0x100000c"],
+            ["^attr clients\\.0x100000c\\.floating$", "0", "true"],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
+            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+        ]);
+        await (corner as unknown as { handler: (ctx: unknown) => Promise<void> })
+            .handler({ flags: {}, positional: ["root"] });
+        expect(log()).toEqual([
+            ["attr", "clients.focus.winid"],
+            ["lock"],
+            ["attr", "clients.0x100000c.floating"], // the floating probe
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating."],
+            ["set_attr", "clients.0x100000c.floating_geometry", "958x527+2+24"],
+            ["set_attr", "clients.0x100000c.floating_geometry", "958x527+2+24"],
             ["unlock"],
         ]);
     });

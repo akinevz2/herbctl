@@ -22,18 +22,17 @@
 //                                     max layout, or use_previous).
 //
 //   floating_focused TRUE (a float holds the layer focus):
-//     UN-FLOAT the focused float — the register chain re-tiles it
-//     into the focused frame below whatever it holds (populated or
-//     empty frame, one frame or many: every former sub-case unified)
-//     — then ATTEMPT to re-focus the tiling layer: floating_focused
-//     off as a SEPARATE follow-up write (hlwm tracks the register on
-//     un-float; a defensive write INSIDE the chain raced it — the
-//     follow-up is an idempotent no-op when it already handed focus
-//     back).
+//     UNFOCUS the floating layer while PRESERVING the float —
+//     floating_focused off (the tiling layer takes focus back, the
+//     float stays floating), and only on a STABLE-ZERO focused frame
+//     client_count (settle re-read) the float is UN-FLOATED into the
+//     empty frame. A populated frame keeps the window floating — the
+//     window can be sent back with Mod-f (the empty-frame register)
+//     or Mod-x again once the frame below empties.
 //
 // Un-float chains intentionally contain NO floating_focused off — hlwm
 // tracks the register on un-float (the defensive write raced with it);
-// the re-focus attempt runs AFTER the chain as a separate write.
+// the layer hand-back write runs BEFORE the empty-frame check here.
 // Standalone register writes (re-entry failure) remain.
 
 import { attrRaw, hc, helperDir, listClientsByTag, setAttr } from "./hc.js";
@@ -90,19 +89,37 @@ export async function floatYank(): Promise<void> {
         const firstFloat = await firstVisibleFloat(tag);
 
         if (ff === "true") {
-            // UN-FLOAT the focused float — the register chain re-tiles
-            // it into the focused frame below whatever it holds —
-            // then ATTEMPT to re-focus the tiling layer (see the
-            // header: the floating_focused off write is a separate
-            // follow-up, not part of the chain).
-            if (orig) {
+            // UNFOCUS the floating layer while PRESERVING the float:
+            // focus the tiling layer (floating_focused off — the float
+            // stays floating), and only when the focused frame below
+            // is EMPTY (stable zero — the settle re-read; hlwm applies
+            // the layer switch asynchronously) UN-FLOAT the float into
+            // it (the register chain + jumpto). A populated frame
+            // keeps the float floating — Mod-f's register owns the
+            // populated-frame float focus; Mod-x's float-focused
+            // press is the "hand focus back to the tiling layer" key.
+            await hc("attr", "tags.focus.floating_focused", "off");
+            let fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            if (fcc === "0") {
+                await new Promise((r) => setTimeout(r, 80));
+                fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            }
+            if (fcc === "0" && orig) {
                 await unfloatWid(orig);
             }
-            await hc("attr", "tags.focus.floating_focused", "off");
             return;
         }
 
-        // floating_focused FALSE: try focusing a float FIRST.
+        // floating_focused FALSE: try focusing a float FIRST — but if
+        // the FOCUSED client is ALREADY a float (the post-hand-back
+        // edge: the layer register reads false while the float window
+        // still holds focus), just re-assert the layer focus and
+        // PRESERVE the float. Falling through here would YANK it
+        // (re-center it) — not what a second press means.
+        if ((await attrRaw("clients.focus.floating")) === "true") {
+            await hc("attr", "tags.focus.floating_focused", "on");
+            return;
+        }
         if ((await hc("attr", "tags.focus.floating_focused", "on")) !== null) {
             // Success: the switched-to float is un-floated (manual
             // un-float is Mod-x's register). The PRE-SCANNED first_float

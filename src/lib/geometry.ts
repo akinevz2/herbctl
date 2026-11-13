@@ -359,58 +359,65 @@ export async function cornerQuadrant(
     wid: string,
     target: "root" | "frame" = "root",
 ): Promise<void> {
+    const want = await computeQuadrant(wid, target);
+    await writeQuadrant(wid, want);
+}
+
+/**
+ * computeQuadrant — the corner target: half the inner rect at the
+ * top-left inner corner. NO current-size read: the window BECOMES the
+ * quadrant (hlwm clamps the write to the client's size hints at
+ * write time), so neither the stale pre-float geometry nor the tiled
+ * content rect is consulted.
+ */
+export async function computeQuadrant(
+    wid: string,
+    target: "root" | "frame" = "root",
+): Promise<{ width: number; height: number; x: number; y: number }> {
     const geoPath = target === "frame"
         ? "tags.focus.tiling.focused_frame.content_geometry"
         : "tags.focus.tiling.root.content_geometry";
     const frameGeom = await attr(geoPath);
     const fm = frameGeom?.match(/^(\d+)x(\d+)([+-]\d+)([+-]\d+)$/);
     if (!fm) {
-        ui("cornerQuadrant: cannot parse target geometry %j", frameGeom);
-        return;
+        ui("computeQuadrant: cannot parse target geometry %j", frameGeom);
+        throw new Error("corner: cannot parse the target geometry");
     }
     const [, fw, fh, fx, fy] = fm.map(Number);
     const rect: Rect = { x: fx, y: fy, width: fw, height: fh };
     const [L, T, R, B] = await decoMargins(wid);
     const iw = Math.max(1, rect.width - L - R);
     const ih = Math.max(1, rect.height - T - B);
-
-    // Current size: floating_geometry is authoritative while floating
-    // — the same fallback placeCenteredIn uses for stale values.
-    let winGeom = await attr(`clients.${wid}.floating_geometry`);
-    if (!/^\d+x\d+/.test(winGeom ?? "")) {
-        winGeom = await attr(`clients.${wid}.content_geometry`);
-    }
-    const wm = winGeom?.match(/^(\d+)x(\d+)/);
-    if (!wm) {
-        ui("cornerQuadrant: cannot parse window geometry %j", winGeom);
-        return;
-    }
-
-    // Quadrant target: half the inner rect — the window BECOMES the
-    // quadrant (grow or shrink); size hints beyond the quadrant are
-    // reconciled from hlwm's real content rect below.
-    const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
     const want = {
         x: rect.x + L,
         y: rect.y + T,
         width: Math.floor(iw / 2),
         height: Math.floor(ih / 2),
     };
-    ui("cornerQuadrant: %s target %dx%d%s%s inner %dx%d -> %dx%d%s%s",
+    const signed = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
+    ui("computeQuadrant: %s target %dx%d%s%s inner %dx%d -> %dx%d%s%s",
         wid, rect.width, rect.height, signed(rect.x), signed(rect.y),
         iw, ih, want.width, want.height, signed(want.x), signed(want.y));
-    // Write the quadrant, then RE-ASSERT it once after a short settle.
-    // NO read-back reconciliation: hlwm applies floating_geometry
-    // writes asynchronously (and clamps the stored attr to the
-    // client's size hints at write time), so a post-write content
-    // read can race the apply and "reconcile" from the stale
-    // pre-write geometry — an oversized float shrinking into the
-    // quadrant would re-fit the whole monitor into the anchor. The
-    // write itself is the truth; the re-assert simply rides out the
-    // apply window (~150 ms — well under the visible-latency floor).
-    await setAttr(`clients.${wid}.floating_geometry`,
-        `${want.width}x${want.height}+${want.x}+${want.y}`);
+    return want;
+}
+
+/**
+ * writeQuadrant — write the quadrant geometry, then RE-ASSERT it once
+ * after a short settle. NO read-back reconciliation: hlwm applies
+ * floating_geometry writes asynchronously (and clamps the stored attr
+ * to the client's size hints at write time), so a post-write content
+ * read can race the apply and "reconcile" from the stale pre-write
+ * geometry — an oversized float shrinking into the quadrant would
+ * re-fit the whole monitor into the anchor. The write itself is the
+ * truth; the re-assert simply rides out the apply window (~150 ms —
+ * well under the visible-latency floor).
+ */
+export async function writeQuadrant(
+    wid: string,
+    want: { width: number; height: number; x: number; y: number },
+): Promise<void> {
+    const rect = `${want.width}x${want.height}+${want.x}+${want.y}`;
+    await setAttr(`clients.${wid}.floating_geometry`, rect);
     await new Promise((r) => setTimeout(r, 150));
-    await setAttr(`clients.${wid}.floating_geometry`,
-        `${want.width}x${want.height}+${want.x}+${want.y}`);
+    await setAttr(`clients.${wid}.floating_geometry`, rect);
 }
