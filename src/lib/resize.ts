@@ -58,10 +58,13 @@ function emit(wid: string, g: Geometry): void {
 
 async function requireFloating(wid: string): Promise<Geometry> {
     const tree = await attrTree(`clients.${wid}.`);
-    if (!tree) throw new Error(`hc_resize: no client ${wid}`);
+    if (!tree) throw new Error(`resize: no client ${wid}`);
     const a = tree.attributes;
     if (!asBool(a.floating) && !asBool(a.pseudotile)) {
-        throw new Error("hc_resize: client is tiled — the layout owns its geometry");
+        throw new Error(
+            "resize: the client is tiled — the layout owns its geometry"
+                + " (pass --to-float to float first, or use a tiling verb)",
+        );
     }
     const geo = asGeom(a.floating_geometry);
     if (!geo) throw new Error("hc_resize: no floating_geometry on client");

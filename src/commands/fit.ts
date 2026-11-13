@@ -7,7 +7,7 @@ import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
 import { attr } from "../lib/hc.js";
-import { fitTo } from "../lib/geometry.js";
+import { fitTo, requireFloating } from "../lib/geometry.js";
 import { layerMods, layerOptions, withLayerMods } from "../lib/layers.js";
 
 export default defineCommand({
@@ -30,7 +30,12 @@ export default defineCommand({
         const target = positional[0] === "frame" || positional[0] === "monitor"
             ? positional[0]
             : flags.target ?? "monitor";
-        await withLayerMods(wid, layerMods(flags),
-            (w) => fitTo(w, target === "frame" ? "frame" : "root"));
+        await withLayerMods(wid, layerMods(flags), async (w) => {
+            // GUARD: fitting a TILED client is not valid without the
+            // --to-float pre-layer write — the layout owns its
+            // geometry. Throws (exit 1) on a tiled client bare.
+            await requireFloating(w, "fit");
+            await fitTo(w, target === "frame" ? "frame" : "root");
+        });
     },
 });

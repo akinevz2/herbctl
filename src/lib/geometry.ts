@@ -236,10 +236,32 @@ export function fitWithinRect(
 }
 
 /**
+ * requireFloating — the guard for the floating-assuming machines
+ * (corner/fit/resize): a TILED client's geometry is owned by the
+ * layout, so the verb is not valid without a --to-float modifier.
+ * Throwing fails the verb with exit code 1 (bunli
+ * CommandExecutionError) — keybinds fall back with `||`:
+ * `herbctl corner || herbctl float-unfocus`. Runs INSIDE the op
+ * callback, so a composed --to-float pre-layer write has already
+ * landed and the guard passes.
+ */
+export async function requireFloating(wid: string, verb: string): Promise<void> {
+    const floating = await attr(`clients.${wid}.floating`);
+    if (floating !== "true" && floating !== "on") {
+        throw new Error(
+            `${verb}: the client is tiled — the layout owns its geometry`
+                + ` (pass --to-float to float first, or use a tiling verb)`,
+        );
+    }
+}
+
+/**
  * Fit a floating window (by wid) inside a target rect's content
  * geometry — "root" = the monitor's work area (the `hc_fit_to` default)
  * or the focused "frame". Shrinks oversized windows, nudges off-screen
  * ones back into bounds — nothing else touched (atomic, no lock).
+ * GUARDED: a tiled client throws (requireFloating) — the verb is not
+ * valid without --to-float.
  */
 export async function fitTo(
     wid: string,

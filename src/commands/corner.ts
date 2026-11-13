@@ -10,7 +10,7 @@ import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
 import { attr } from "../lib/hc.js";
-import { cornerQuadrant } from "../lib/geometry.js";
+import { cornerQuadrant, requireFloating } from "../lib/geometry.js";
 import { layerMods, layerOptions, withLayerMods } from "../lib/layers.js";
 
 export default defineCommand({
@@ -27,6 +27,14 @@ export default defineCommand({
         const wid = flags.wid || (await attr("clients.focus.winid"));
         if (!wid) return; // no focused client: fail soft like the other helpers
         const target = positional[0] === "frame" ? "frame" : "root";
-        await withLayerMods(wid, layerMods(flags), (w) => cornerQuadrant(w, target));
+        await withLayerMods(wid, layerMods(flags), async (w) => {
+            // GUARD: pinning a TILED client is not valid without the
+            // --to-float pre-layer write — the layout owns its
+            // geometry. Throws (exit 1) on a tiled client bare, so
+            // keybinds fall back: `herbctl corner || herbctl
+            // float-unfocus`.
+            await requireFloating(w, "corner");
+            await cornerQuadrant(w, target);
+        });
     },
 });

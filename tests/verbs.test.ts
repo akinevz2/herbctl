@@ -10,6 +10,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import center from "../src/commands/center";
+import corner from "../src/commands/corner";
+import fit from "../src/commands/fit";
 import move from "../src/commands/move";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
@@ -149,5 +151,68 @@ describe("verb layer modifiers", () => {
             (move as unknown as { handler: (ctx: unknown) => Promise<void> })
                 .handler({ flags: {}, positional: [] }),
         ).toThrow("nothing to do");
+    });
+
+    test("corner bare on a TILED client -> throws (exit 1) — the || fallback hook", async () => {
+        scenario([
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000004"],
+            ["^attr clients\\.0x1000004\\.floating$", "0", "false"],
+        ]);
+        await expect(
+            (corner as unknown as { handler: (ctx: unknown) => Promise<void> })
+                .handler({ flags: {}, positional: ["root"] }),
+        ).rejects.toThrow("the client is tiled");
+        // the guard read is the only WM traffic — no geometry writes
+        expect(log()).toEqual([
+            ["attr", "clients.focus.winid"],
+            ["attr", "clients.0x1000004.floating"],
+        ]);
+    });
+
+    test("corner --to-float on a tiled client: floats first, then pins (guard passes)", async () => {
+        scenario([
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000005"],
+            ["^attr clients\\.0x1000005\\.floating$", "0", "true"],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
+            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr clients\\.0x1000005\\.floating_geometry$", "0", "960x540+2+24"],
+            ["^attr clients\\.0x1000005\\.content_geometry$", "0", "960x540+2+24"],
+        ]);
+        await (corner as unknown as { handler: (ctx: unknown) => Promise<void> })
+            .handler({ flags: { "to-float": true }, positional: ["root"] });
+        expect(log()).toEqual([
+            ["attr", "clients.focus.winid"],
+            ["lock"],
+            // --to-float: the pre-layer write (idempotent when already
+            // floating)
+            ["set_attr", "clients.0x1000005.floating", "on"],
+            // the guard read — floating is on now, it passes
+            ["attr", "clients.0x1000005.floating"],
+            // the pin: half the inner rect at the top-left inner corner
+            // (958x527 = half of 1916x1054 clamped to the client's size
+            // hints by hlwm at write time; +2+24 = the deco margins) —
+            // the write is asserted twice riding out hlwm's async apply
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x1000005.floating_geometry"],
+            ["set_attr", "clients.0x1000005.floating_geometry", "958x527+2+24"],
+            ["set_attr", "clients.0x1000005.floating_geometry", "958x527+2+24"],
+            ["unlock"],
+        ]);
+    });
+
+    test("fit bare on a TILED client -> throws (exit 1)", async () => {
+        scenario([
+            ["^attr clients\\.focus\\.winid$", "0", "0x1000006"],
+            ["^attr clients\\.0x1000006\\.floating$", "0", "false"],
+        ]);
+        await expect(
+            (fit as unknown as { handler: (ctx: unknown) => Promise<void> })
+                .handler({ flags: {}, positional: [] }),
+        ).rejects.toThrow("the client is tiled");
+        expect(log()).toEqual([
+            ["attr", "clients.focus.winid"],
+            ["attr", "clients.0x1000006.floating"],
+        ]);
     });
 });
