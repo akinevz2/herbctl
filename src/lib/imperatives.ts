@@ -5,7 +5,41 @@
 // Fail-soft everywhere (the dots wrapper convention): a failed
 // herbstclient call resolves null instead of throwing.
 
-import { attrRaw, attrValue, hc, helper } from "./hc.js";
+import { attrRaw, attrValue, helper, hc, listClientsByTag } from "./hc.js";
+
+/**
+ * The un-float chain shared by the float machines: fold the
+ * fullscreen/pseudotile flags and write floating to `state` (off = the
+ * un-float register, on = the companion-float yank). Fail-soft —
+ * the source scripts wrap these in `2>/dev/null || true`.
+ */
+export async function floatFlagsChain(wid: string, state: "on" | "off"): Promise<void> {
+    await hc(
+        "chain",
+        ",", "attr", `clients.${wid}.fullscreen`, "off",
+        ",", "attr", `clients.${wid}.pseudotile`, "off",
+        ",", "attr", `clients.${wid}.floating`, state,
+    );
+}
+
+/**
+ * Pre-scan the first VISIBLE (non-minimized) float on the focused
+ * tag — the only candidate the floating layer can focus (the
+ * hc_focus / hc_floatx first_float; clients.focus settles late after
+ * a layer switch, so the machines resolve this UP FRONT). Returns ""
+ * when the tag is unreadable or no visible float exists.
+ */
+export async function firstVisibleFloat(tag: string): Promise<string> {
+    if (!tag) return "";
+    for (const c of await listClientsByTag(tag)) {
+        const floating = (await attrRaw(`clients.${c}.floating`)) || "false";
+        if (floating === "true") {
+            const minimized = (await attrRaw(`clients.${c}.minimized`)) || "false";
+            if (minimized === "false") return c;
+        }
+    }
+    return "";
+}
 
 /**
  * un-float a float by wid and focus it (hc_floatx's unfloat_wid): fold
@@ -14,30 +48,8 @@ import { attrRaw, attrValue, hc, helper } from "./hc.js";
  * source).
  */
 export async function unfloatWid(wid: string): Promise<void> {
-    await hc(
-        "chain",
-        ",", "attr", `clients.${wid}.fullscreen`, "off",
-        ",", "attr", `clients.${wid}.pseudotile`, "off",
-        ",", "attr", `clients.${wid}.floating`, "off",
-    );
+    await floatFlagsChain(wid, "off");
     await hc("jumpto", wid);
-}
-
-/**
- * Float a window and center it within the FOCUSED frame's content
- * geometry (the scrollFocus "float + center to frame" composition):
- * floating on, then hc_center frame — under a lock so both land in one
- * motion (no intermediate paint of the uncentered float). The vacated
- * frame is deliberately left in place.
- */
-export async function floatCenterFrame(wid: string): Promise<void> {
-    await hc("lock");
-    try {
-        await hc("set_attr", `clients.${wid}.floating`, "true");
-        await helper("hc_center", ["frame"]);
-    } finally {
-        await hc("unlock");
-    }
 }
 
 /**

@@ -36,8 +36,9 @@
 // the re-focus attempt runs AFTER the chain as a separate write.
 // Standalone register writes (re-entry failure) remain.
 
-import { attrRaw, hc, helper, helperDir, listClientsByTag } from "./hc.js";
-import { unfloatWid } from "./imperatives.js";
+import { attrRaw, hc, helperDir, listClientsByTag, setAttr } from "./hc.js";
+import { placeCenteredIn } from "./geometry.js";
+import { unfloatWid, firstVisibleFloat } from "./imperatives.js";
 
 export async function floatYank(): Promise<void> {
     await hc("lock");
@@ -86,17 +87,7 @@ export async function floatYank(): Promise<void> {
         // resolved UP FRONT (clients.focus settles late after the
         // switch).
         const ff = (await attrRaw("tags.focus.floating_focused")) || "false";
-        let firstFloat = "";
-        for (const c of await listClientsByTag(tag)) {
-            const floating = (await attrRaw(`clients.${c}.floating`)) || "false";
-            if (floating === "true") {
-                const minimized = (await attrRaw(`clients.${c}.minimized`)) || "false";
-                if (minimized === "false") {
-                    firstFloat = c;
-                    break;
-                }
-            }
-        }
+        const firstFloat = await firstVisibleFloat(tag);
 
         if (ff === "true") {
             // UN-FLOAT the focused float — the register chain re-tiles
@@ -130,9 +121,29 @@ export async function floatYank(): Promise<void> {
             // YANK: float the focused client, center it in the monitor's
             // geometry at its current size, INTO the float session. The
             // (now possibly empty) frame is deliberately LEFT ALONE.
-            await hc("attr", "clients.focus.floating", "on");
-            await helper("hc_center", ["root"]);
-            await hc("attr", "tags.focus.floating_focused", "on");
+            // ONE lock (the native machines take none of their own).
+            // The yank target is the FOCUSED window (orig may lag).
+            await hc("lock");
+            try {
+                const yankWid = orig || (await attrRaw("clients.focus.winid"));
+                if (yankWid) {
+                    await setAttr(`clients.${yankWid}.floating`, "on");
+                    await placeCenteredIn(yankWid, "tags.focus.tiling.root.content_geometry");
+                    // Foreground the float session (the historical hc_center
+                    // closing tail), then the machine's own register
+                    // write — inside the lock, as the script wrote it
+                    // (idempotent on the chain's try-write).
+                    await hc(
+                        "chain", ".",
+                        "try", "set_attr", "tags.focus.floating_focused", "on", ".",
+                        "jumpto", yankWid, ".",
+                        "bring", yankWid,
+                    );
+                    await hc("attr", "tags.focus.floating_focused", "on");
+                }
+            } finally {
+                await hc("unlock");
+            }
             return;
         }
 

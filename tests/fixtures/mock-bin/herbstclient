@@ -18,7 +18,7 @@ if [ -f "$SCENARIO" ]; then
         [ -n "$pat" ] || continue
         case "$pat" in \#*) continue ;; esac
         if printf '%s' "$argv" | grep -Eq -- "$pat"; then
-            [ -n "$out" ] && printf '%s\n' "$out"
+            [ -n "$out" ] && printf '%b\n' "$out"
             exit "${code:-0}"
         fi
     done < "$SCENARIO"

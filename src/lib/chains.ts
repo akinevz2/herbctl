@@ -7,25 +7,11 @@
 // Fail-soft (the dots wrapper convention) via the spawn layer in
 // src/lib/hc.ts — a failed call resolves null instead of throwing.
 //
-// The CLI verbs that expose these live in src/commands/*.ts (one per verb)
-// (bunli command modules, one per verb).
-
-import { defineCommand } from "@bunli/core";
+// The CLI verbs that expose these live in src/commands/*.ts (one bunli
+// command module per verb), via the navCommand factory in
+// src/lib/nav-command.ts.
 
 import { hc } from "./hc.js";
-
-/** CLI verb factory: exit 1 when the underlying machine reports
- *  failure (run() returning false), 0 otherwise. */
-export function navCommand(name: string, description: string, run: () => Promise<boolean | void>) {
-    return defineCommand({
-        name: name as never,
-        description,
-        handler: async () => {
-            const ok = await run();
-            if (ok === false) process.exit(1);
-        },
-    });
-}
 
 /** $Mod-s (focus.sh) — the zoom/peek grid: urgent jumpto, frame-down
  *  focus, the floating-layer branch (attr floating_focused true both
@@ -144,7 +130,7 @@ export async function shiftUp(): Promise<void> {
  *    >1, windows on a single frame). */
 export type RotateTreeMode = "auto" | "focus" | "smart";
 
-export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): Promise<void> {
+export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): Promise<boolean> {
     if (mode === "smart") {
         await hc(
             "or",
@@ -153,7 +139,7 @@ export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): 
             ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame", "-1",
             ",", "cycle", "-1",
         );
-        return;
+        return true;
     }
     if (mode === "focus") {
         await hc(
@@ -161,7 +147,7 @@ export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): 
             ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame",
             ",", "cycle", "+1",
         );
-        return;
+        return true;
     }
     await hc(
         "or",
@@ -170,6 +156,7 @@ export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): 
         ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame",
         ",", "cycle", "+1",
     );
+    return true;
 }
 
 /** $ModShift-b (autostart): with >1 window in the focused frame, split

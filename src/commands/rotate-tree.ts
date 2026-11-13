@@ -1,4 +1,4 @@
-// src/commands/rotate-tree.ts — bunli verb for the rotateTree chain
+// src/commands/rotate-tree.ts
 // (see src/lib/chains.ts for the port and the source binding). The
 // only nav verb with flags: --focus forces the focus/skip branch,
 // --smart[=N] reverses the rotate condition (rotate N or more frames,

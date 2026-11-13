@@ -1,5 +1,5 @@
 // tests/chains.test.ts — port-fidelity suite for the pure keybind
-// chains (src/commands/chains.ts) and the small imperatives
+// chains (src/lib/chains.ts) and the small imperatives
 // (src/lib/imperatives.ts).
 //
 // The herbstclient binary is mocked via PATH (tests/fixtures/mock-bin):
@@ -41,7 +41,6 @@ import {
     xkillOrClose,
 } from "../src/lib/chains";
 import {
-    floatCenterFrame,
     minimizeKeepFrame,
     removeEmptyFrame,
     unfloatWid,
@@ -442,16 +441,6 @@ describe("small imperatives", () => {
                 ",", "attr", "clients.0x1000001.floating", "off",
             ],
             ["jumpto", "0x1000001"],
-        ]);
-    });
-
-    test("floatCenterFrame floats + hc_center frame under lock", async () => {
-        await floatCenterFrame("0x1000002");
-        expect(log()).toEqual([
-            ["lock"],
-            ["set_attr", "clients.0x1000002.floating", "true"],
-            [`${FIX}/hc_center`, "frame"],
-            ["unlock"],
         ]);
     });
 

@@ -20,7 +20,6 @@
 import { parseAttr } from "herbstutil/src/commands/parse.js";
 
 const HERBSTCLIENT = "herbstclient";
-
 /** The dots helper directory (hc_center, hc_maximize, polyframes, …). */
 export function helperDir(): string {
     return process.env.HERBSTCTL_HELPER_DIR ?? `${process.env.HOME}/.local/bin`;
@@ -82,6 +81,41 @@ export async function attrRaw(path: string): Promise<string> {
 }
 
 /**
+ * Read an object attribute (the polyframes hc.attr shape, migrated
+ * with the geometry machines): the trimmed string, or null when the
+ * object/attribute does not exist or the WM is unreachable (an empty
+ * reply is a failure too — hlwm never prints an empty leaf).
+ */
+export async function attr(path: string): Promise<string | null> {
+    const s = (await hc("attr", path))?.stdout.trim() ?? "";
+    return s === "" ? null : s;
+}
+
+/** Write an attribute: set_attr <path> <value>. */
+export async function setAttr(
+    path: string,
+    value: string | boolean | number,
+): Promise<boolean> {
+    return (await hc("set_attr", path, String(value))) !== null;
+}
+
+/**
+ * herbstclient list_clients. Options: { tag, frame } — tag is a tag
+ * NAME, frame is the FLAT frame index (an object path is silently
+ * ignored by hlwm there and would return ALL tag clients).
+ */
+export async function listClients(
+    { tag, frame }: { tag?: string; frame?: string } = {},
+): Promise<string[]> {
+    const args = ["list_clients"];
+    if (tag !== undefined) args.push(`--tag=${tag}`);
+    if (frame !== undefined) args.push(`--frame=${frame}`);
+    const r = await hc(...args);
+    if (r === null) return [];
+    return r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
  * Typed leaf read via herbstutil's parseAttr — the herbstutil
  * integration surface: a bare `herbstclient attr <path>` reply parsed
  * into its hlwm-typed value (bools as booleans, ints as numbers,
@@ -93,9 +127,65 @@ export async function attrValue<T = string | number | boolean>(path: string): Pr
     return parseAttr(r.stdout).value as T;
 }
 
-/** herbstclient list_clients --tag=NAME → wids (WM order). */
+/**
+ * herbstclient list_clients --tag=NAME → wids (WM order).
+ */
 export async function listClientsByTag(tag: string): Promise<string[]> {
-    const r = await hc("list_clients", `--tag=${tag}`);
-    if (r === null) return [];
-    return r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    return listClients({ tag });
+}
+
+// ── herbstutil integration: the attr-tree view ──────────────────────
+// (migrated with the geometry machines; the parsing itself is
+// herbstutil's parseAttr — one `attr <node>.` round trip returns the
+// whole typed subtree: booleans as booleans, geometries as objects.)
+
+export interface AttrNode {
+    /** the node's own value ("" for object/container nodes) */
+    value: string;
+    /** child object names, trailing dot stripped ("parent_frame") */
+    children: string[];
+    /** typed attribute map (booleans as booleans, geometries as objects) */
+    attributes: Record<string, unknown>;
+}
+
+/**
+ * `herbstclient attr <path>`, parsed by herbstutil's parseAttr — one
+ * round trip for the whole node. Resolves null on ANY failure (wm
+ * unreachable, missing object) — callers fall back to plain attr reads.
+ */
+export async function attrTree(path: string): Promise<AttrNode | null> {
+    const r = await hc("attr", path);
+    if (r === null) return null;
+    try {
+        const parsed = parseAttr(r.stdout);
+        return {
+            value: String(parsed.value ?? ""),
+            children: (parsed.children ?? []).map((c) => String(c).replace(/\.+$/, "")),
+            attributes: parsed.attributes ?? {},
+        };
+    } catch {
+        return null;
+    }
+}
+
+/** String semantics for values the typed code compares. */
+export function asString(v: unknown): string | undefined {
+    if (v === undefined || v === null) return undefined;
+    return typeof v === "string" ? v : String(v);
+}
+
+/** Boolean semantics: accepts real booleans and "true"/"false". */
+export function asBool(v: unknown): boolean {
+    return v === true || v === "true";
+}
+
+/** Number semantics with a default: herbstutil types numeric attrs,
+ *  and unreliable readers fall back to the default here. */
+export function num(v: unknown, fallback: number): number {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string") {
+        const n = Number(v);
+        if (Number.isFinite(n)) return n;
+    }
+    return fallback;
 }

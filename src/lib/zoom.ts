@@ -14,8 +14,15 @@
 // is owned by the hc_maximize/hc_unmaximize helpers this delegates to
 // — exactly as the script does — so the PF_MAX state handling (and the
 // hc_maximize-daemon janitor they spawn) is preserved untouched.
+//
+// The geometry operations are the NATIVE geometry.ts machines now
+// (placeCenteredIn / resizeFill / fitTo) — the hc_center/hc_resize/
+// hc_fit_to helper spawns are gone; the sequence is composed in-process
+// under ONE lock.
 
-import { attrRaw, hc, helper } from "./hc.js";
+import { attr, attrRaw, hc, helper, setAttr } from "./hc.js";
+import { fitTo, placeCenteredIn } from "./geometry.js";
+import { resizeFill } from "./resize.js";
 
 export async function zoomToggle(): Promise<boolean> {
     const wid = await attrRaw("clients.focus.winid");
@@ -25,17 +32,17 @@ export async function zoomToggle(): Promise<boolean> {
     }
 
     // Hold the WM lock across the whole toggle (hc_zoom's outer lock):
-    // branch (a) runs hc_center followed by hc_resize, and without an
+    // branch (a) runs the float + place + fill sequence, and without an
     // outer lock the window would be drawn at the centered geometry for
     // a frame before jumping to the frame-filling one (visible flash).
     // hlwm's lock is reference-counted, so the nested locks inside the
     // helpers stay balanced.
     if (!(await hc("lock"))) return false;
     try {
-        const tag = await attrRaw(`clients.${wid}.tag`);
-        const floating = (await attrRaw(`clients.${wid}.floating`)) || "false";
+        const tag = await attr(`clients.${wid}.tag`);
+        const floating = (await attr(`clients.${wid}.floating`)) || "false";
 
-        if (tag.endsWith("-max")) {
+        if (tag?.endsWith("-max")) {
             // (c) maximized -> back to the original tag/frame
             await helper("hc_unmaximize", [wid]);
         } else if (floating === "true") {
@@ -43,15 +50,24 @@ export async function zoomToggle(): Promise<boolean> {
             await helper("hc_maximize", [wid]);
         } else {
             // (a) tiled -> float the focused window directly: clear
-            // stray fullscreen/pseudotile flags, then hc_center root
-            // floats it, centers it inside its focused frame and
-            // focuses it; hc_resize <wid> frame is the deco-flush fill
-            // and hc_fit_to root the idempotent guard.
-            await hc("attr", `clients.${wid}.fullscreen`, "off");
-            await hc("attr", `clients.${wid}.pseudotile`, "off");
-            await helper("hc_center", ["root"]);
-            await helper("hc_resize", [wid, "frame"]);
-            await helper("hc_fit_to", ["root"]);
+            // stray fullscreen/pseudotile flags, float it ON (the
+            // floating theme's decoration is what the geometry math
+            // measures), place it centered inside the workspace rect,
+            // foreground the float session (the historical
+            // hc_center closing tail), then the deco-flush fill to the
+            // frame content rect and the fit guard.
+            await setAttr(`clients.${wid}.fullscreen`, "off");
+            await setAttr(`clients.${wid}.pseudotile`, "off");
+            await setAttr(`clients.${wid}.floating`, "on");
+            await placeCenteredIn(wid, "tags.focus.tiling.root.content_geometry");
+            await hc(
+                "chain", ".",
+                "try", "set_attr", "tags.focus.floating_focused", "on", ".",
+                "jumpto", wid, ".",
+                "bring", wid,
+            );
+            await resizeFill(wid, "frame");
+            await fitTo(wid, "root");
         }
     } finally {
         await hc("unlock");

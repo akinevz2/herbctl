@@ -9,9 +9,44 @@ import { join } from "node:path";
 
 import { zoomToggle } from "../src/lib/zoom";
 import { floatYank } from "../src/lib/extracted";
-import { floatFocus, floatUnfocus } from "../src/lib/focus";
+import { floatFocus } from "../src/lib/float-focus";
+import { floatUnfocus } from "../src/lib/float-unfocus";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
+
+// ── attrTree fixtures (herbstutil parseAttr wire format) ─────────────
+// The migrated geometry machines read subtrees (theme.floating.,
+// clients.<wid>., …) — one `attr <path>.` round trip parsed by
+// herbstutil. Deco outline: border 2 + paddings 0 + title 20 + depth
+// 2 → L=R=B=2, T=24 (the +2+24 corner insets of the companion tests).
+// The scenario file is LINE-based, so the multi-line dumps travel as
+// literal \n escapes — the mock's `printf %b` expands them.
+const THEME_TREE = [
+    "7 attributes:",
+    " i u w border_width = 2",
+    " i u w padding_left = 0",
+    " i u w padding_right = 0",
+    " i u w padding_bottom = 0",
+    " i u w padding_top = 0",
+    " i u w title_height = 20",
+    " i u w title_depth = 2",
+].join("\\n");
+/** A floating client subtree (floating on, geometry authoritative). */
+const CLIENT_TREE_FLOATING = (geo: string) => [
+    "2 attributes:",
+    " b u w floating = true",
+    ` R u w floating_geometry = ${geo}`,
+].join("\\n");
+/** Parent-frame subtree with an EMPTY index (single unsplit root). */
+const PARENT_TREE_EMPTY = [
+    "1 attributes:",
+    ' s u w index = ""',
+].join("\\n");
+/** Root-frame subtree (content_geometry only). */
+const ROOT_TREE = (geo: string) => [
+    "1 attributes:",
+    ` R u w content_geometry = ${geo}`,
+].join("\\n");
 
 let tmp = "";
 let logPath = "";
@@ -60,11 +95,18 @@ afterEach(() => {
 
 // zoomToggle — the hc_zoom press-state machine.
 describe("zoomToggle (hc_zoom port)", () => {
-    test("(a) tiled -> flag reset + hc_center root + hc_resize frame + hc_fit_to root, under lock", async () => {
+    test("(a) tiled -> flags off, float on, centered in root, registered, deco-flush fill + fit guard, under ONE lock", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000001"],
             ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "false"],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
+            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1000x800+0+0"],
+            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1000x800+0+0")],
+            ["^attr clients\\.0x1000001\\.floating_geometry$", "0", "996x748+2+37"],
+            ["^attr clients\\.0x1000001\\.content_geometry$", "0", "996x748+2+37"],
+            ["^attr clients\\.0x1000001\\.$", "0", CLIENT_TREE_FLOATING("996x748+2+26")],
+            ["^attr clients\\.0x1000001\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
         ]);
         expect(await zoomToggle()).toBe(true);
         expect(log()).toEqual([
@@ -72,11 +114,31 @@ describe("zoomToggle (hc_zoom port)", () => {
             ["lock"],
             ["attr", "clients.0x1000001.tag"],
             ["attr", "clients.0x1000001.floating"],
-            ["attr", "clients.0x1000001.fullscreen", "off"],
-            ["attr", "clients.0x1000001.pseudotile", "off"],
-            [`${FIX}/hc_center`, "root"],
-            [`${FIX}/hc_resize`, "0x1000001", "frame"],
-            [`${FIX}/hc_fit_to`, "root"],
+            ["set_attr", "clients.0x1000001.fullscreen", "off"],
+            ["set_attr", "clients.0x1000001.pseudotile", "off"],
+            ["set_attr", "clients.0x1000001.floating", "on"],
+            // placeCenteredIn (root): geometry, deco margins, adopted
+            // size, the placement write, the stable reconcile read
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x1000001.floating_geometry"],
+            ["set_attr", "clients.0x1000001.floating_geometry", "996x748+2+37"],
+            ["attr", "clients.0x1000001.content_geometry"],
+            // the float-session register (the historical hc_center tail)
+            ["chain", ".", "try", "set_attr", "tags.focus.floating_focused", "on", ".",
+             "jumpto", "0x1000001", ".", "bring", "0x1000001"],
+            // resizeFill frame: floating client tree, parent frame,
+            // target content rect, deco margins, the fill write
+            ["attr", "clients.0x1000001."],
+            ["attr", "clients.0x1000001.parent_frame."],
+            ["attr", "tags.focus.tiling.root."],
+            ["attr", "theme.floating."],
+            ["set_attr", "clients.0x1000001.floating_geometry", "996x774+2+24"],
+            // fitTo root: geometry, margins, current size — already
+            // fitting, idempotent, no write
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x1000001.floating_geometry"],
             ["unlock"],
         ]);
     });
@@ -170,7 +232,7 @@ describe("floatYank (hc_floatx port)", () => {
         ]);
     });
 
-    test("yank: no floats to focus + populated frame -> float + hc_center root + register on, frame left alone", async () => {
+    test("yank: no floats to focus + populated frame -> float + place centered in root + register, under ONE lock, frame left alone", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|1|grid|work|800x600+6+35|false"],
@@ -178,6 +240,10 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.0x1000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""], // re-entry fails: no floats
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
+            ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1000x800+0+0"],
+            ["^attr clients\\.0x1000003\\.floating_geometry$", "0", "500x400+250+211"],
+            ["^attr clients\\.0x1000003\\.content_geometry$", "0", "500x400+250+211"],
         ]);
         await floatYank();
         expect(log()).toEqual([
@@ -188,9 +254,17 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000003.floating"],
             ["attr", "tags.focus.floating_focused", "on"], // fails
-            ["attr", "clients.focus.floating", "on"], // yank
-            [`${FIX}/hc_center`, "root"],
-            ["attr", "tags.focus.floating_focused", "on"],
+            ["lock"], // the yank's own lock (nested, refcount-balanced)
+            ["set_attr", "clients.0x1000003.floating", "on"], // yank
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x1000003.floating_geometry"],
+            ["set_attr", "clients.0x1000003.floating_geometry", "500x400+250+211"],
+            ["attr", "clients.0x1000003.content_geometry"],
+            ["chain", ".", "try", "set_attr", "tags.focus.floating_focused", "on", ".",
+             "jumpto", "0x1000003", ".", "bring", "0x1000003"],
+            ["attr", "tags.focus.floating_focused", "on"], // the machine's own register write
+            ["unlock"],
             ["unlock"],
         ]);
     });
@@ -458,7 +532,7 @@ describe("floatFocus (hc_focus port)", () => {
         ]);
     });
 
-    test("(g) switch fails + max layout -> flag chain, hc_center frame, vacated frame removed, hc_fit_to frame, algorithm max", async () => {
+    test("(g) switch fails + max layout -> float on, place centered in frame, foreground, vacated frame removed, fit guard, algorithm max — ONE lock", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000003"],
@@ -468,6 +542,10 @@ describe("floatFocus (hc_focus port)", () => {
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "max"],
             ["^attr clients\\.focus\\.winid$", "0", "0x2000003"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
+            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.content_geometry$", "0", "1000x800+0+0"],
+            ["^attr clients\\.0x2000003\\.floating_geometry$", "0", "500x400+250+211"],
+            ["^attr clients\\.0x2000003\\.content_geometry$", "0", "500x400+250+211"],
         ]);
         await floatFocus();
         expect(log()).toEqual([
@@ -478,12 +556,28 @@ describe("floatFocus (hc_focus port)", () => {
             ["attr", "tags.focus.floating_focused", "on"], // fails
             ["attr", "tags.focus.tiling.focused_frame.algorithm"], // algo == max
             ["attr", "clients.focus.winid"],
+            ["lock"], // ONE lock around the whole lift
             ["chain", ",", "attr", "clients.0x2000003.fullscreen", "off",
              ",", "attr", "clients.0x2000003.pseudotile", "off"],
-            [`${FIX}/hc_center`, "frame"],
+            ["set_attr", "clients.0x2000003.floating", "on"],
+            // placeCenteredIn (focused frame): geometry, deco margins,
+            // adopted size, the placement write, the stable reconcile
+            ["attr", "tags.focus.tiling.focused_frame.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x2000003.floating_geometry"],
+            ["set_attr", "clients.0x2000003.floating_geometry", "500x400+250+211"],
+            ["attr", "clients.0x2000003.content_geometry"],
+            // the float-session foreground (the historical hc_center tail)
+            ["chain", ".", "try", "set_attr", "tags.focus.floating_focused", "on", ".",
+             "jumpto", "0x2000003", ".", "bring", "0x2000003"],
             ["attr", "tags.focus.tiling.focused_frame.client_count"], // vcc == 0
             ["remove"], // Mod-f owns frame closing here
-            [`${FIX}/hc_fit_to`, "frame"],
+            // fitTo frame: geometry, margins, size — already fitting,
+            // idempotent, no write
+            ["attr", "tags.focus.tiling.focused_frame.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x2000003.floating_geometry"],
+            ["unlock"],
             ["attr", "tags.focus.tiling.focused_frame.algorithm", "max"], // the tail
         ]);
     });
@@ -498,14 +592,20 @@ describe("floatFocus (hc_focus port)", () => {
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.algorithm$", "0", "max"],
             ["^attr clients\\.focus\\.winid$", "0", "0x2000003"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
+            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.content_geometry$", "0", "1000x800+0+0"],
+            ["^attr clients\\.0x2000003\\.floating_geometry$", "0", "500x400+250+211"],
+            ["^attr clients\\.0x2000003\\.content_geometry$", "0", "500x400+250+211"],
         ]);
         await floatFocus();
         const entries = log();
         expect(entries).not.toContainEqual(["remove"]);
-        expect(entries.slice(-4)).toEqual([
-            [`${FIX}/hc_center`, "frame"],
+        expect(entries.slice(-6)).toEqual([
             ["attr", "tags.focus.tiling.focused_frame.client_count"], // vcc == 1
-            [`${FIX}/hc_fit_to`, "frame"],
+            ["attr", "tags.focus.tiling.focused_frame.content_geometry"], // fitTo
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x2000003.floating_geometry"],
+            ["unlock"],
             ["attr", "tags.focus.tiling.focused_frame.algorithm", "max"], // the tail
         ]);
     });
@@ -628,7 +728,7 @@ describe("floatUnfocus ($Mod-x port)", () => {
         ]);
     });
 
-    test("tiling focused + visible float -> recall (switch + jumpto + hc_center root), then the tiling window becomes a top-left quarter companion float", async () => {
+    test("tiling focused + visible float -> companion float (native fill + corner cap), then recall (switch + jumpto + place centered)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x1000001"],
@@ -639,14 +739,21 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1920x1080+0+0")],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
             // the adopted (fill-to-frame) size — larger than the
             // quarter screen in both dimensions -> capped down
             ["^attr clients\\.0x1000002\\.floating_geometry$", "0", "1500x900+10+40"],
+            ["^attr clients\\.0x1000002\\.$", "0", CLIENT_TREE_FLOATING("1500x900+10+40")],
+            ["^attr clients\\.0x1000002\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
             ["^attr theme\\.floating\\.title_height$", "0", "20"],
             ["^attr theme\\.floating\\.title_depth$", "0", "2"],
+            // the recalled float's geometry reads (placeCenteredIn root)
+            ["^attr clients\\.0x1000001\\.floating_geometry$", "0", "900x600+0+0"],
+            ["^attr clients\\.0x1000001\\.content_geometry$", "0", "900x600+510+251"],
         ]);
         await floatUnfocus();
         expect(log()).toEqual([
@@ -657,17 +764,22 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"], // the companion capture
             // companion float FIRST (unconditional): register chain,
-            // then the size pass — hc_resize frame adopts the tiled
-            // size (deco-flush onto the old tile rect), the read-back
-            // is capped at the quarter screen (960x540 = half work
-            // area; 1500x900 comes DOWN), and the capped rect is
-            // re-issued at the top-left corner (+2+24 = the floating
+            // then the size pass — resizeFill frame adopts the tiled
+            // size (deco-flush onto the old tile rect; root content
+            // 1920x1080 inset by the floating deco 2/24 -> 1916x1054),
+            // the read-back is capped at the quarter screen (960x540 =
+            // half work area; 1500x900 comes DOWN), and the capped rect
+            // is re-issued at the top-left corner (+2+24 = the floating
             // deco margins — the outline sits flush at 0,0)
             ["chain",
                 ",", "attr", "clients.0x1000002.fullscreen", "off",
                 ",", "attr", "clients.0x1000002.pseudotile", "off",
                 ",", "attr", "clients.0x1000002.floating", "on"],
-            [`${FIX}/hc_resize`, "0x1000002", "frame"],
+            ["attr", "clients.0x1000002."], // resizeFill: floating client tree
+            ["attr", "clients.0x1000002.parent_frame."],
+            ["attr", "tags.focus.tiling.root."],
+            ["attr", "theme.floating."],
+            ["set_attr", "clients.0x1000002.floating_geometry", "1916x1054+2+24"],
             ["attr", "tags.focus.tiling.root.content_geometry"],
             ["attr", "clients.0x1000002.floating_geometry"],
             ["attr", "theme.floating.border_width"],
@@ -675,11 +787,16 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "theme.floating.padding_top"],
             ["attr", "theme.floating.title_height"],
             ["attr", "theme.floating.title_depth"],
-            [`${FIX}/hc_resize`, "0x1000002", "960x540+2+24"],
-            // then the recall (switch + jumpto + hc_center root)
+            ["attr", "clients.0x1000002."], // resizeToRect: floating check
+            ["set_attr", "clients.0x1000002.floating_geometry", "960x540+2+24"],
+            // then the recall (switch + jumpto + place centered in root)
             ["attr", "tags.focus.floating_focused", "on"],
             ["jumpto", "0x1000001"],
-            [`${FIX}/hc_center`, "root"],
+            ["attr", "tags.focus.tiling.root.content_geometry"],
+            ["attr", "theme.floating."],
+            ["attr", "clients.0x1000001.floating_geometry"],
+            ["set_attr", "clients.0x1000001.floating_geometry", "900x600+510+251"],
+            ["attr", "clients.0x1000001.content_geometry"],
         ]);
     });
 
@@ -692,7 +809,11 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1920x1080+0+0")],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
             ["^attr clients\\.0x1000003\\.floating_geometry$", "0", "1600x1000+6+35"],
+            ["^attr clients\\.0x1000003\\.$", "0", CLIENT_TREE_FLOATING("1600x1000+6+35")],
+            ["^attr clients\\.0x1000003\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -710,7 +831,11 @@ describe("floatUnfocus ($Mod-x port)", () => {
                 ",", "attr", "clients.0x1000003.fullscreen", "off",
                 ",", "attr", "clients.0x1000003.pseudotile", "off",
                 ",", "attr", "clients.0x1000003.floating", "on"],
-            [`${FIX}/hc_resize`, "0x1000003", "frame"],
+            ["attr", "clients.0x1000003."],
+            ["attr", "clients.0x1000003.parent_frame."],
+            ["attr", "tags.focus.tiling.root."],
+            ["attr", "theme.floating."],
+            ["set_attr", "clients.0x1000003.floating_geometry", "1916x1054+2+24"],
             ["attr", "tags.focus.tiling.root.content_geometry"],
             ["attr", "clients.0x1000003.floating_geometry"],
             ["attr", "theme.floating.border_width"],
@@ -718,10 +843,11 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "theme.floating.padding_top"],
             ["attr", "theme.floating.title_height"],
             ["attr", "theme.floating.title_depth"],
-            [`${FIX}/hc_resize`, "0x1000003", "960x540+2+24"], // 1600x1000 capped down
+            ["attr", "clients.0x1000003."],
+            ["set_attr", "clients.0x1000003.floating_geometry", "960x540+2+24"], // 1600x1000 capped down
             // the companion IS the float session's focus (the yank
             // convention: floating on + floating_focused on) — no
-            // jumpto, no hc_center
+            // jumpto, no centering
             ["attr", "tags.focus.floating_focused", "on"],
         ]);
     });
@@ -735,7 +861,11 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000009"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
+            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1920x1080+0+0")],
+            ["^attr theme\\.floating\\.$", "0", THEME_TREE],
             ["^attr clients\\.0x1000009\\.floating_geometry$", "0", "800x400+10+40"],
+            ["^attr clients\\.0x1000009\\.$", "0", CLIENT_TREE_FLOATING("800x400+10+40")],
+            ["^attr clients\\.0x1000009\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -753,7 +883,11 @@ describe("floatUnfocus ($Mod-x port)", () => {
                 ",", "attr", "clients.0x1000009.fullscreen", "off",
                 ",", "attr", "clients.0x1000009.pseudotile", "off",
                 ",", "attr", "clients.0x1000009.floating", "on"],
-            [`${FIX}/hc_resize`, "0x1000009", "frame"],
+            ["attr", "clients.0x1000009."],
+            ["attr", "clients.0x1000009.parent_frame."],
+            ["attr", "tags.focus.tiling.root."],
+            ["attr", "theme.floating."],
+            ["set_attr", "clients.0x1000009.floating_geometry", "1916x1054+2+24"],
             ["attr", "tags.focus.tiling.root.content_geometry"],
             ["attr", "clients.0x1000009.floating_geometry"],
             ["attr", "theme.floating.border_width"],
@@ -763,7 +897,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "theme.floating.title_depth"],
             // 800x400 is under the quarter screen in both dimensions —
             // kept, only the corner move is issued
-            [`${FIX}/hc_resize`, "0x1000009", "800x400+2+24"],
+            ["attr", "clients.0x1000009."],
+            ["set_attr", "clients.0x1000009.floating_geometry", "800x400+2+24"],
             ["attr", "tags.focus.floating_focused", "on"],
         ]);
     });

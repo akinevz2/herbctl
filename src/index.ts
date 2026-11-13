@@ -29,6 +29,17 @@ import splitRightFocus from "./commands/split-right-focus.js";
 import xkillOrClose from "./commands/xkill-or-close.js";
 import zoomToggle from "./commands/zoom.js";
 import reload from "./commands/reload.js";
+import center from "./commands/center.js";
+import fit from "./commands/fit.js";
+import corner from "./commands/corner.js";
+import resize from "./commands/resize.js";
+import tile from "./commands/tile.js";
+import spawn from "./commands/spawn.js";
+import move from "./commands/move.js";
+import minimize from "./commands/minimize.js";
+import splitNew from "./commands/split-new.js";
+import splitLaunch from "./commands/split-launch.js";
+import closeTiling from "./commands/close-tiling.js";
 
 import { name, version, description } from "../package.json" with { type: "json" };
 
@@ -43,6 +54,7 @@ for (const command of [
   shiftUp, rotateTree, shiftDown, splitDown, shiftLeft, shiftRight,
   newFrame, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
   closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus, reload,
+  center, fit, corner, resize, tile, spawn, move, minimize, splitNew, splitLaunch, closeTiling,
 ]) {
   cli.command(command);
 }
