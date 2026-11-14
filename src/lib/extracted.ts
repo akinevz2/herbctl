@@ -48,9 +48,13 @@ export async function floatYank(): Promise<void> {
 
         // One batched state read (hc_floatx's chain+echo round trip):
         // curframe_wcount | focused_frame.client_count | frame_count |
-        // focused_frame.algorithm | tag name | focused content_geometry
-        // | floating_effectively. Newlines stripped, pipe-split — the
-        // same parsing the script does.
+        // focused_frame.algorithm | tag name | focused content_geometry.
+        // Newlines stripped, pipe-split — the same parsing the script
+        // does. NOTE: NO clients.focus read in the chain — with the
+        // floating layer unfocused and an EMPTY frame hlwm drops
+        // clients.focus entirely, and one failed member kills the WHOLE
+        // chain (the tag would read empty and firstVisibleFloat would
+        // enumerate nothing — the grabbed-nothing bug).
         const state = await hc(
             "chain",
             ",", "attr", "tags.focus.curframe_wcount", ",", "echo", "|",
@@ -58,15 +62,14 @@ export async function floatYank(): Promise<void> {
             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
             ",", "attr", "tags.focus.name", ",", "echo", "|",
-            ",", "attr", "tags.focus.tiling.focused_frame.content_geometry", ",", "echo", "|",
-            ",", "attr", "clients.focus.floating_effectively",
+            ",", "attr", "tags.focus.tiling.focused_frame.content_geometry",
         );
         const st = (state?.stdout ?? "").replace(/\n/g, "").split("|");
         const frameClients = st[0] || "0";
         const frameCc = st[1] || "0";
         const frameCount = st[2] || "1";
         const algo = st[3] ?? "";
-        const tag = st[4] ?? "";
+        const tag = (await attrRaw("tags.focus.name")) || st[4] || "";
 
         const tagTotal = async (): Promise<string> => {
             if (!tag) return "0";

@@ -183,8 +183,7 @@ describe("floatYank (hc_floatx port)", () => {
             ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
             ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
             ",", "attr", "tags.focus.name", ",", "echo", "|",
-            ",", "attr", "tags.focus.tiling.focused_frame.content_geometry", ",", "echo", "|",
-            ",", "attr", "clients.focus.floating_effectively",
+            ",", "attr", "tags.focus.tiling.focused_frame.content_geometry",
         ];
     const UNFLOAT_CHAIN = (wid: string) => [
         "chain",
@@ -209,6 +208,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"], // orig
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"], // ff read
             ["list_clients", "--tag=work"], // first_float scan
             ["attr", "clients.0x1000001.floating"],
@@ -240,6 +240,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"], // orig
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"], // ff read
             ["list_clients", "--tag=work"], // first_float scan
             ["attr", "clients.0x1000001.floating"],
@@ -271,6 +272,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000003.floating"],
@@ -305,6 +307,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000004.floating"],
@@ -330,6 +333,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000005.floating"],
@@ -355,6 +359,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000007.floating"],
@@ -380,6 +385,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x100000b.floating"],
@@ -407,6 +413,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000008.floating"],
@@ -442,6 +449,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000009.floating"],
@@ -479,6 +487,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x100000c.floating"],
@@ -515,6 +524,7 @@ describe("floatYank (hc_floatx port)", () => {
             ["lock"],
             ["attr", "clients.focus.winid"],
             stateChain(),
+            ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x100000a.floating"],
