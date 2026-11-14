@@ -60,14 +60,12 @@ export default defineCommand({
             // tiled + --to-float: PRE-SET the corner geometry (the
             // floating theme's deco margins — valid while tiled; the
             // write only takes effect on the float), THEN float on —
-            // the first floating paint is already in the corner.
+            // the first floating paint is already in the corner. ONE
+            // write: the re-assert produced a second visible resize.
             const want = await computeQuadrant(wid, target);
             await setAttr(`clients.${wid}.floating_geometry`,
                 `${want.width}x${want.height}+${want.x}+${want.y}`);
             await setAttr(`clients.${wid}.floating`, "on");
-            // the re-assert rides out hlwm's async apply (~150 ms)
-            await setAttr(`clients.${wid}.floating_geometry`,
-                `${want.width}x${want.height}+${want.x}+${want.y}`);
         });
     },
 });

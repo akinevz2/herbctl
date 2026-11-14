@@ -781,24 +781,20 @@ describe("floatUnfocus ($Mod-x port)", () => {
         ]);
     });
 
-    test("tiling focused + visible float -> companion float (native fill + corner cap), then recall (switch + jumpto + place centered)", async () => {
+    test("tiling focused + visible float -> single-write companion (pre-set corner rect from the tiled content geometry, then float-on), then recall (switch + jumpto + place centered)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x1000001"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
-            // the tiling window that becomes the companion float
             ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
-            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1920x1080+0+0")],
             ["^attr theme\\.floating\\.$", "0", THEME_TREE],
-            // the adopted (fill-to-frame) size — larger than the
-            // quarter screen in both dimensions -> capped down
-            ["^attr clients\\.0x1000002\\.floating_geometry$", "0", "1500x900+10+40"],
-            ["^attr clients\\.0x1000002\\.$", "0", CLIENT_TREE_FLOATING("1500x900+10+40")],
-            ["^attr clients\\.0x1000002\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
+            // the tiled window's content geometry (live while tiled):
+            // 1500x900 -> capped at the quarter screen (960x540)
+            ["^attr clients\\.0x1000002\\.content_geometry$", "0", "1500x900+0+0"],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -816,32 +812,23 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "clients.0x1000001.minimized"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"], // the companion capture
-            // companion float FIRST (unconditional): register chain,
-            // then the size pass — resizeFill frame adopts the tiled
-            // size (deco-flush onto the old tile rect; root content
-            // 1920x1080 inset by the floating deco 2/24 -> 1916x1054),
-            // the read-back is capped at the quarter screen (960x540 =
-            // half work area; 1500x900 comes DOWN), and the capped rect
-            // is re-issued at the top-left corner (+2+24 = the floating
-            // deco margins — the outline sits flush at 0,0)
-            ["chain",
-                ",", "attr", "clients.0x1000002.fullscreen", "off",
-                ",", "attr", "clients.0x1000002.pseudotile", "off",
-                ",", "attr", "clients.0x1000002.floating", "on"],
-            ["attr", "clients.0x1000002."], // resizeFill: floating client tree
-            ["attr", "clients.0x1000002.parent_frame."],
-            ["attr", "tags.focus.tiling.root."],
-            ["attr", "theme.floating."],
-            ["set_attr", "clients.0x1000002.floating_geometry", "1916x1054+2+24"],
-            ["attr", "tags.focus.tiling.root.content_geometry"],
-            ["attr", "clients.0x1000002.floating_geometry"],
+            ["attr", "tags.focus.tiling.root.content_geometry"], // the cap source
+            ["attr", "clients.0x1000002.content_geometry"], // the adopted (tiled) size
             ["attr", "theme.floating.border_width"],
             ["attr", "theme.floating.padding_left"],
             ["attr", "theme.floating.padding_top"],
             ["attr", "theme.floating.title_height"],
             ["attr", "theme.floating.title_depth"],
-            ["attr", "clients.0x1000002."], // resizeToRect: floating check
+            // SINGLE-WRITE companion: the final corner rect (960x540 =
+            // quarter screen; +2+24 = the floating deco margins) is
+            // PRE-SET while the window is still tiled, THEN the float
+            // chain — the first floating paint already sits in the
+            // corner (no fill-then-cap double resize)
             ["set_attr", "clients.0x1000002.floating_geometry", "960x540+2+24"],
+            ["chain",
+                ",", "attr", "clients.0x1000002.fullscreen", "off",
+                ",", "attr", "clients.0x1000002.pseudotile", "off",
+                ",", "attr", "clients.0x1000002.floating", "on"],
             // then the recall (switch + jumpto + place centered in root)
             ["attr", "tags.focus.floating_focused", "on"],
             ["jumpto", "0x1000001"],
@@ -853,7 +840,7 @@ describe("floatUnfocus ($Mod-x port)", () => {
         ]);
     });
 
-    test("tiling focused + no float -> companion-only: the tiling window floats to the corner and takes the float session", async () => {
+    test("tiling focused + no float -> companion-only: single write, the tiling window floats to the corner and takes the float session", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x1000003"],
@@ -862,11 +849,10 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
-            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1920x1080+0+0")],
             ["^attr theme\\.floating\\.$", "0", THEME_TREE],
-            ["^attr clients\\.0x1000003\\.floating_geometry$", "0", "1600x1000+6+35"],
-            ["^attr clients\\.0x1000003\\.$", "0", CLIENT_TREE_FLOATING("1600x1000+6+35")],
-            ["^attr clients\\.0x1000003\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
+            // the tiled content geometry: 1600x1000 -> capped down to
+            // the quarter screen (shrink-only)
+            ["^attr clients\\.0x1000003\\.content_geometry$", "0", "1600x1000+0+0"],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -880,24 +866,18 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "clients.0x1000003.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"], // the companion capture
-            ["chain",
-                ",", "attr", "clients.0x1000003.fullscreen", "off",
-                ",", "attr", "clients.0x1000003.pseudotile", "off",
-                ",", "attr", "clients.0x1000003.floating", "on"],
-            ["attr", "clients.0x1000003."],
-            ["attr", "clients.0x1000003.parent_frame."],
-            ["attr", "tags.focus.tiling.root."],
-            ["attr", "theme.floating."],
-            ["set_attr", "clients.0x1000003.floating_geometry", "1916x1054+2+24"],
-            ["attr", "tags.focus.tiling.root.content_geometry"],
-            ["attr", "clients.0x1000003.floating_geometry"],
+            ["attr", "tags.focus.tiling.root.content_geometry"], // the cap source
+            ["attr", "clients.0x1000003.content_geometry"], // the adopted (tiled) size
             ["attr", "theme.floating.border_width"],
             ["attr", "theme.floating.padding_left"],
             ["attr", "theme.floating.padding_top"],
             ["attr", "theme.floating.title_height"],
             ["attr", "theme.floating.title_depth"],
-            ["attr", "clients.0x1000003."],
             ["set_attr", "clients.0x1000003.floating_geometry", "960x540+2+24"], // 1600x1000 capped down
+            ["chain",
+                ",", "attr", "clients.0x1000003.fullscreen", "off",
+                ",", "attr", "clients.0x1000003.pseudotile", "off",
+                ",", "attr", "clients.0x1000003.floating", "on"],
             // the companion IS the float session's focus (the yank
             // convention: floating on + floating_focused on) — no
             // jumpto, no centering
@@ -905,7 +885,7 @@ describe("floatUnfocus ($Mod-x port)", () => {
         ]);
     });
 
-    test("companion smaller than a quarter screen -> keeps its adopted size, corner move only (shrink-only, never grow)", async () => {
+    test("companion smaller than a quarter screen -> keeps its adopted size (single write, corner move only — shrink-only, never grow)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x1000009"],
@@ -914,11 +894,10 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000009"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
             ["^attr tags\\.focus\\.tiling\\.root\\.content_geometry$", "0", "1920x1080+0+0"],
-            ["^attr tags\\.focus\\.tiling\\.root\\.$", "0", ROOT_TREE("1920x1080+0+0")],
             ["^attr theme\\.floating\\.$", "0", THEME_TREE],
-            ["^attr clients\\.0x1000009\\.floating_geometry$", "0", "800x400+10+40"],
-            ["^attr clients\\.0x1000009\\.$", "0", CLIENT_TREE_FLOATING("800x400+10+40")],
-            ["^attr clients\\.0x1000009\\.parent_frame\\.$", "0", PARENT_TREE_EMPTY],
+            // 800x400 is under the quarter screen in both dimensions —
+            // kept (shrink-only)
+            ["^attr clients\\.0x1000009\\.content_geometry$", "0", "800x400+0+0"],
             ["^attr theme\\.floating\\.border_width$", "0", "2"],
             ["^attr theme\\.floating\\.padding_left$", "0", "0"],
             ["^attr theme\\.floating\\.padding_top$", "0", "0"],
@@ -932,29 +911,23 @@ describe("floatUnfocus ($Mod-x port)", () => {
             ["attr", "clients.0x1000009.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"],
-            ["chain",
-                ",", "attr", "clients.0x1000009.fullscreen", "off",
-                ",", "attr", "clients.0x1000009.pseudotile", "off",
-                ",", "attr", "clients.0x1000009.floating", "on"],
-            ["attr", "clients.0x1000009."],
-            ["attr", "clients.0x1000009.parent_frame."],
-            ["attr", "tags.focus.tiling.root."],
-            ["attr", "theme.floating."],
-            ["set_attr", "clients.0x1000009.floating_geometry", "1916x1054+2+24"],
-            ["attr", "tags.focus.tiling.root.content_geometry"],
-            ["attr", "clients.0x1000009.floating_geometry"],
+            ["attr", "tags.focus.tiling.root.content_geometry"], // the cap source
+            ["attr", "clients.0x1000009.content_geometry"], // the adopted (tiled) size
             ["attr", "theme.floating.border_width"],
             ["attr", "theme.floating.padding_left"],
             ["attr", "theme.floating.padding_top"],
             ["attr", "theme.floating.title_height"],
             ["attr", "theme.floating.title_depth"],
-            // 800x400 is under the quarter screen in both dimensions —
-            // kept, only the corner move is issued
-            ["attr", "clients.0x1000009."],
+            // the adopted size kept, corner anchor only
             ["set_attr", "clients.0x1000009.floating_geometry", "800x400+2+24"],
+            ["chain",
+                ",", "attr", "clients.0x1000009.fullscreen", "off",
+                ",", "attr", "clients.0x1000009.pseudotile", "off",
+                ",", "attr", "clients.0x1000009.floating", "on"],
             ["attr", "tags.focus.floating_focused", "on"],
         ]);
     });
+
 });
 
 // The CLI verbs of the machines: registered under their functional

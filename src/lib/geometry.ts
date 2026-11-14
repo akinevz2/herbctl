@@ -402,22 +402,16 @@ export async function computeQuadrant(
 }
 
 /**
- * writeQuadrant — write the quadrant geometry, then RE-ASSERT it once
- * after a short settle. NO read-back reconciliation: hlwm applies
- * floating_geometry writes asynchronously (and clamps the stored attr
- * to the client's size hints at write time), so a post-write content
- * read can race the apply and "reconcile" from the stale pre-write
- * geometry — an oversized float shrinking into the quadrant would
- * re-fit the whole monitor into the anchor. The write itself is the
- * truth; the re-assert simply rides out the apply window (~150 ms —
- * well under the visible-latency floor).
+ * writeQuadrant — the SINGLE write of the quadrant geometry. hlwm
+ * clamps floating_geometry writes to the client's size hints at
+ * write time and applies them on the next float paint — one write is
+ * the truth; a re-assert after a settle only produced a SECOND
+ * visible resize (the paint-then-repaint the user saw).
  */
 export async function writeQuadrant(
     wid: string,
     want: { width: number; height: number; x: number; y: number },
 ): Promise<void> {
-    const rect = `${want.width}x${want.height}+${want.x}+${want.y}`;
-    await setAttr(`clients.${wid}.floating_geometry`, rect);
-    await new Promise((r) => setTimeout(r, 150));
-    await setAttr(`clients.${wid}.floating_geometry`, rect);
+    await setAttr(`clients.${wid}.floating_geometry`,
+        `${want.width}x${want.height}+${want.x}+${want.y}`);
 }

@@ -195,13 +195,12 @@ describe("verb layer modifiers", () => {
             // the stale pre-float geometry)
             ["set_attr", "clients.0x1000005.floating_geometry", "958x527+2+24"],
             ["set_attr", "clients.0x1000005.floating", "on"],
-            // the re-assert rides out hlwm's async apply
-            ["set_attr", "clients.0x1000005.floating_geometry", "958x527+2+24"],
+            // ONE write — the re-assert produced a second visible resize
             ["unlock"],
         ]);
     });
 
-    test("corner on an already-floating client: pin only (the write asserted twice)", async () => {
+    test("corner on an already-floating client: pin only (the single write)", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x100000c"],
             ["^attr clients\\.0x100000c\\.floating$", "0", "true"],
@@ -216,7 +215,6 @@ describe("verb layer modifiers", () => {
             ["attr", "clients.0x100000c.floating"], // the floating probe
             ["attr", "tags.focus.tiling.root.content_geometry"],
             ["attr", "theme.floating."],
-            ["set_attr", "clients.0x100000c.floating_geometry", "958x527+2+24"],
             ["set_attr", "clients.0x100000c.floating_geometry", "958x527+2+24"],
             ["unlock"],
         ]);

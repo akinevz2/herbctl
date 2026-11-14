@@ -37,6 +37,7 @@
 // Standalone register writes (re-entry failure) remain.
 
 import { attrRaw, hc, helperDir, listClientsByTag, setAttr } from "./hc.js";
+import { ui } from "./debug.js";
 import { placeCenteredIn } from "./geometry.js";
 import { unfloatWid, firstVisibleFloat } from "./imperatives.js";
 
@@ -88,8 +89,10 @@ export async function floatYank(): Promise<void> {
         // switch).
         const ff = (await attrRaw("tags.focus.floating_focused")) || "false";
         const firstFloat = await firstVisibleFloat(tag);
+        ui("floatYank: ff=%s firstFloat=%s orig=%s frameCc=%s frameCount=%s", ff, firstFloat, orig, frameCc, frameCount);
 
         if (ff === "true") {
+            ui("floatYank: ff=true -> close out (orig=%s)", orig);
             // CLOSE OUT of the floating layer: un-float the focused
             // float — the register chain re-tiles it into the focused
             // frame below whatever it holds — then the
@@ -110,12 +113,17 @@ export async function floatYank(): Promise<void> {
         // edge: the layer register reads false while the float window
         // still holds focus), CLOSE OUT — un-float it (this is the
         // register key).
-        if ((await attrRaw("clients.focus.floating")) === "true") {
+        const focusProbe = await attrRaw("clients.focus.floating");
+        ui("floatYank: focus probe=%j", focusProbe);
+        if (focusProbe === "true") {
+            ui("floatYank: focused client is a float -> close out");
             if (orig) await unfloatWid(orig);
             await hc("attr", "tags.focus.floating_focused", "off");
             return;
         }
-        if ((await hc("attr", "tags.focus.floating_focused", "on")) !== null) {
+        const switched = await hc("attr", "tags.focus.floating_focused", "on");
+        ui("floatYank: switch=%j", switched);
+        if (switched !== null) {
             // Success: the float layer is focused. The PRE-SCANNED
             // first_float is PRIMARY — clients.focus settles late after
             // the switch. GRAB-or-focus: a STABLE-EMPTY focused frame
@@ -141,7 +149,11 @@ export async function floatYank(): Promise<void> {
             return;
         }
 
-        // Re-entry failed: no non-minimized float exists.
+        // Re-entry failed: no non-minimized float exists — BUT a
+        // visible float may still be there (hlwm can refuse the layer
+        // switch transiently with no focused client): an EMPTY focused
+        // frame GRABS the float onto the tiling layer regardless of
+        // the switch outcome.
         if (Number(frameCc) > 0) {
             // YANK (the exclusive-foreground add): float the focused
             // client, center it in the monitor's geometry at its
@@ -178,9 +190,16 @@ export async function floatYank(): Promise<void> {
             }
             return;
         }
+        if (firstFloat) {
+            // empty focused frame + a visible float the switch failed
+            // to focus: GRAB it onto the tiling layer anyway.
+            ui("floatYank: switch failed, empty frame -> grab %s", firstFloat);
+            await unfloatWid(firstFloat);
+            return;
+        }
 
-        // Empty focused frame (or a lone frame): no floats to focus,
-        // nothing to yank — tidy the tiling layer instead.
+        // Empty focused frame, no floats at all: tidy the tiling layer
+        // instead.
         await tidyNoFloats(orig);
     } finally {
         await hc("unlock");

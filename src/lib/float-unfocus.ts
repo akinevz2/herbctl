@@ -33,7 +33,7 @@
 
 import { attr, attrRaw, hc, helper } from "./hc.js";
 import { placeCenteredIn } from "./geometry.js";
-import { resizeFill, resizeToRect } from "./resize.js";
+import { setAttr } from "./hc.js";
 import { firstVisibleFloat, floatFlagsChain } from "./imperatives.js";
 
 export async function floatUnfocus(): Promise<void> {
@@ -76,11 +76,20 @@ export async function floatUnfocus(): Promise<void> {
     // and title included.
     const tilingWid = await attrRaw("clients.focus.winid");
     if (tilingWid) {
-        await floatFlagsChain(tilingWid, "on");
-        await resizeFill(tilingWid, "frame");
+        // SINGLE-WRITE companion (the flash fix + no double resize):
+        // the FINAL corner rect is computed from the TILED content
+        // geometry (live while tiled — no float-first resizeFill), any
+        // dimension larger than half the work area comes DOWN to half
+        // (never up — smaller windows keep their adopted size), and
+        // the rect is anchored flush in the top-left corner (inset by
+        // the theme.floating deco margins — the deterministic margin
+        // source; the live decoration read races hlwm's async
+        // float-deco apply). PRE-SET before the float-on: the first
+        // floating paint already sits in the corner — one resize, no
+        // fill-then-cap repaint.
         const rootGeom = await attrRaw("tags.focus.tiling.root.content_geometry");
         const rm = rootGeom.match(/^(\d+)x(\d+)([+-]\d+)([+-]\d+)$/);
-        const geo = await attrRaw(`clients.${tilingWid}.floating_geometry`);
+        const geo = await attrRaw(`clients.${tilingWid}.content_geometry`);
         const gm = geo.match(/^(\d+)x(\d+)/);
         let w = 0;
         let h = 0;
@@ -107,8 +116,11 @@ export async function floatUnfocus(): Promise<void> {
             const top = Math.max(0, bw + numOr(await attrRaw("theme.floating.padding_top"), 0)
                 + numOr(await attrRaw("theme.floating.title_height"), 0)
                 + numOr(await attrRaw("theme.floating.title_depth"), 0));
-            await resizeToRect(tilingWid, `${w}x${h}+${left}+${top}`);
+            // PRE-SET the corner rect, THEN float on — one paint
+            await setAttr(`clients.${tilingWid}.floating_geometry`,
+                `${w}x${h}+${left}+${top}`);
         }
+        await floatFlagsChain(tilingWid, "on");
     }
 
     if (floatWid && floatWid !== tilingWid
