@@ -193,10 +193,11 @@ describe("floatYank (hc_floatx port)", () => {
         ",", "attr", `clients.${wid}.floating`, "off",
     ];
 
-    test("focus-a-float-then-unfloat: tiling layer + visible float -> unfloat_wid(first_float)", async () => {
+    test("grab: tiling layer + visible float + STABLE-EMPTY focused frame -> un-float the float into it", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|0|2|max|work|800x600+6+35|false"],
+            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
             ["^list_clients --tag=work$", "0", "0x1000001\n0x1000002"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
@@ -212,9 +213,41 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"], // first_float scan
             ["attr", "clients.0x1000001.floating"],
             ["attr", "clients.0x1000001.minimized"],
-            ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
+            ["attr", "clients.focus.floating"], // the focused-float probe (close-out edge)
             ["attr", "tags.focus.floating_focused", "on"], // the try-focus
+            // the grab: stable-empty frame check (settle re-read)
+            ["attr", "tags.focus.tiling.focused_frame.client_count"],
+            ["attr", "tags.focus.tiling.focused_frame.client_count"],
             UNFLOAT_CHAIN("0x1000001"),
+            ["jumpto", "0x1000001"],
+            ["unlock"],
+        ]);
+    });
+
+    test("focus-a-float: tiling layer + visible float + POPULATED focused frame -> jumpto focus, the float stays floating", async () => {
+        scenario([
+            ["^attr clients\\.focus\\.winid$", "0", "0x100000d"],
+            ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|2|max|work|800x600+6+35|false"],
+            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
+            ["^list_clients --tag=work$", "0", "0x1000001\n0x100000d"],
+            ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
+            ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
+            ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
+        ]);
+        await floatYank();
+        expect(log()).toEqual([
+            ["lock"],
+            ["attr", "clients.focus.winid"], // orig
+            stateChain(),
+            ["attr", "tags.focus.floating_focused"], // ff read
+            ["list_clients", "--tag=work"], // first_float scan
+            ["attr", "clients.0x1000001.floating"],
+            ["attr", "clients.0x1000001.minimized"],
+            ["attr", "clients.focus.floating"], // the focused-float probe (close-out edge)
+            ["attr", "tags.focus.floating_focused", "on"], // the try-focus
+            ["attr", "tags.focus.tiling.focused_frame.client_count"], // populated: 1
+            // no grab — the frame is populated: focus the float only
             ["jumpto", "0x1000001"],
             ["unlock"],
         ]);
@@ -258,7 +291,7 @@ describe("floatYank (hc_floatx port)", () => {
         ]);
     });
 
-    test("float focused, populated frame (multi-frame, the old defer) -> hand focus back to the tiling layer, float PRESERVED", async () => {
+    test("float focused, populated frame (multi-frame) -> CLOSE OUT: un-float into the frame below", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000004"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|2|max|work|800x600+6+35|false"],
@@ -266,7 +299,6 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.0x1000004\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000004\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
         ]);
         await floatYank();
         expect(log()).toEqual([
@@ -277,13 +309,14 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000004.floating"],
             ["attr", "clients.0x1000004.minimized"],
-            ["attr", "tags.focus.floating_focused", "off"], // the hand-back
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // populated: 1
-            ["unlock"], // the float stays floating, focus on the tiling layer
+            UNFLOAT_CHAIN("0x1000004"),
+            ["jumpto", "0x1000004"],
+            ["attr", "tags.focus.floating_focused", "off"], // the follow-up write
+            ["unlock"],
         ]);
     });
 
-    test("float focused, populated frame (one frame) -> the same hand-back + preserve", async () => {
+    test("float focused, one frame -> the same close-out", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000006"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "2|1|1|max|work|800x600+6+35|false"],
@@ -291,7 +324,6 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.0x1000005\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000005\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
         ]);
         await floatYank();
         expect(log()).toEqual([
@@ -302,13 +334,14 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000005.floating"],
             ["attr", "clients.0x1000005.minimized"],
-            ["attr", "tags.focus.floating_focused", "off"], // the hand-back
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // populated: 1
+            UNFLOAT_CHAIN("0x1000006"),
+            ["jumpto", "0x1000006"],
+            ["attr", "tags.focus.floating_focused", "off"], // the follow-up write
             ["unlock"],
         ]);
     });
 
-    test("float focused, EMPTY focused frame -> hand back + un-float into the empty frame", async () => {
+    test("float focused, EMPTY focused frame -> the same close-out (no frame reads)", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000007"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|3|grid|work|800x600+6+35|false"],
@@ -316,7 +349,6 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.0x1000007\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000007\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
         ]);
         await floatYank();
         expect(log()).toEqual([
@@ -327,17 +359,14 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x1000007.floating"],
             ["attr", "clients.0x1000007.minimized"],
-            ["attr", "tags.focus.floating_focused", "off"], // the hand-back
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // empty: 0
-            // the settle re-read — un-float ONLY on a stable zero
-            ["attr", "tags.focus.tiling.focused_frame.client_count"],
             UNFLOAT_CHAIN("0x1000007"),
             ["jumpto", "0x1000007"],
+            ["attr", "tags.focus.floating_focused", "off"], // the follow-up write
             ["unlock"],
         ]);
     });
 
-    test("float focused, EMPTY max frame -> the same hand-back + un-float", async () => {
+    test("float focused, EMPTY max frame -> the same close-out", async () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x100000b"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|3|max|work|800x600+6+35|false"],
@@ -345,7 +374,6 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.0x100000b\\.floating$", "0", "true"],
             ["^attr clients\\.0x100000b\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
         ]);
         await floatYank();
         expect(log()).toEqual([
@@ -356,11 +384,9 @@ describe("floatYank (hc_floatx port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x100000b.floating"],
             ["attr", "clients.0x100000b.minimized"],
-            ["attr", "tags.focus.floating_focused", "off"], // the hand-back
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // empty: 0
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // settle re-read
             UNFLOAT_CHAIN("0x100000b"),
             ["jumpto", "0x100000b"],
+            ["attr", "tags.focus.floating_focused", "off"], // the follow-up write
             ["unlock"],
         ]);
     });
@@ -519,7 +545,7 @@ describe("floatFocus (hc_focus port)", () => {
         ",", "attr", `clients.${wid}.floating`, "off",
     ];
 
-    test("(c->e) tiling layer + layer-switch succeeds + EMPTY frame -> un-float the pre-scanned float (no jumpto, no lock)", async () => {
+    test("(c) tiling layer + layer-switch succeeds -> TERMINATE: the float layer is focused, the float stays floating (no grab — Mod-f never un-floats)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000001"],
@@ -527,7 +553,6 @@ describe("floatFocus (hc_focus port)", () => {
             ["^attr clients\\.0x2000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "0", ""],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
         ]);
         await floatFocus();
         expect(log()).toEqual([
@@ -537,11 +562,7 @@ describe("floatFocus (hc_focus port)", () => {
             ["attr", "clients.0x2000001.minimized"],
             ["attr", "tags.focus.floating_focused"], // ff read
             ["attr", "tags.focus.floating_focused", "on"], // the try-focus
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // fcc == 0
-            // the settle re-read: un-float ONLY on a stable zero (a
-            // too-early read can race hlwm's async layer-switch apply)
-            ["attr", "tags.focus.tiling.focused_frame.client_count"],
-            UNFLOAT_CHAIN("0x2000001"), // no jumpto — already focused
+            // terminate — the empty-frame grab is Mod-x's register now
         ]);
     });
 
@@ -562,8 +583,7 @@ describe("floatFocus (hc_focus port)", () => {
             ["attr", "clients.0x2000001.floating"],
             ["attr", "clients.0x2000001.minimized"],
             ["attr", "tags.focus.floating_focused"],
-            ["attr", "tags.focus.floating_focused", "on"],
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // fcc > 0 -> stop
+            ["attr", "tags.focus.floating_focused", "on"], // the try-focus — terminate
         ]);
     });
 
@@ -666,15 +686,13 @@ describe("floatFocus (hc_focus port)", () => {
         ]);
     });
 
-    test("(h) floating_focused TRUE -> direct un-float (NO hc_tile), client_count read unused", async () => {
+    test("(h) floating_focused TRUE -> UNFOCUS the layer, the float preserved (closing out is Mod-x's register)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000005"],
             ["^attr clients\\.0x2000005\\.floating$", "0", "true"],
             ["^attr clients\\.0x2000005\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
-            ["^attr clients\\.focus\\.winid$", "0", "0x2000006"],
-            ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
         ]);
         await floatFocus();
         expect(log()).toEqual([
@@ -683,19 +701,18 @@ describe("floatFocus (hc_focus port)", () => {
             ["attr", "clients.0x2000005.floating"],
             ["attr", "clients.0x2000005.minimized"],
             ["attr", "tags.focus.floating_focused"],
-            ["attr", "clients.focus.winid"], // wid (fallback to float_wid)
-            ["attr", "tags.focus.tiling.focused_frame.client_count"], // read, unused
-            UNFLOAT_CHAIN("0x2000006"),
+            // UNFOCUS the layer: the float is preserved — no reads of
+            // the focused window, no un-float
+            ["attr", "tags.focus.floating_focused", "off"],
         ]);
     });
 
-    test("(h) no focused window and no visible float -> stop after the reads", async () => {
+    test("(h) no focused window and no visible float -> unfocus the layer after the pre-scan", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^list_clients --tag=work$", "0", "0x2000007"],
             ["^attr clients\\.0x2000007\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
-            ["^attr clients\\.focus\\.winid$", "1", ""],
         ]);
         await floatFocus();
         expect(log()).toEqual([
@@ -703,7 +720,8 @@ describe("floatFocus (hc_focus port)", () => {
             ["list_clients", "--tag=work"],
             ["attr", "clients.0x2000007.floating"],
             ["attr", "tags.focus.floating_focused"],
-            ["attr", "clients.focus.winid"], // empty -> no float_wid -> stop
+            // UNFOCUS the layer: no wid needed — the layer write only
+            ["attr", "tags.focus.floating_focused", "off"],
         ]);
     });
 });

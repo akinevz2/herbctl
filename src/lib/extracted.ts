@@ -6,7 +6,10 @@
 //   floating_focused FALSE (tiling layer owns focus):
 //     1. TRY focusing a float (floating_focused on; it fails when no
 //        non-minimized float exists).
-//     2. Success -> UN-FLOAT the float it focused (the pre-scanned
+//     2. Success -> the float layer is focused. GRAB-or-focus: a
+//        STABLE-EMPTY focused frame TAKES the float (un-float into it
+//        — the settle re-read); a POPULATED frame just FOCUSES the
+//        float (jumpto — it keeps floating). The pre-scanned
 //        first_float is PRIMARY — clients.focus settles late after the
 //        switch).
 //     3. Failure -> no floats exist:
@@ -22,13 +25,11 @@
 //                                     max layout, or use_previous).
 //
 //   floating_focused TRUE (a float holds the layer focus):
-//     UNFOCUS the floating layer while PRESERVING the float —
-//     floating_focused off (the tiling layer takes focus back, the
-//     float stays floating), and only on a STABLE-ZERO focused frame
-//     client_count (settle re-read) the float is UN-FLOATED into the
-//     empty frame. A populated frame keeps the window floating — the
-//     window can be sent back with Mod-f (the empty-frame register)
-//     or Mod-x again once the frame below empties.
+//     CLOSE OUT of the floating layer — un-float the focused float
+//     (the register chain re-tiles it into the focused frame below
+//     whatever it holds), then the floating_focused off follow-up
+//     write. Mod-f's float-focused press only unfocuses the layer;
+//     Mod-x is the register that closes out.
 //
 // Un-float chains intentionally contain NO floating_focused off — hlwm
 // tracks the register on un-float (the defensive write raced with it);
@@ -89,44 +90,51 @@ export async function floatYank(): Promise<void> {
         const firstFloat = await firstVisibleFloat(tag);
 
         if (ff === "true") {
-            // UNFOCUS the floating layer while PRESERVING the float:
-            // focus the tiling layer (floating_focused off — the float
-            // stays floating), and only when the focused frame below
-            // is EMPTY (stable zero — the settle re-read; hlwm applies
-            // the layer switch asynchronously) UN-FLOAT the float into
-            // it (the register chain + jumpto). A populated frame
-            // keeps the float floating — Mod-f's register owns the
-            // populated-frame float focus; Mod-x's float-focused
-            // press is the "hand focus back to the tiling layer" key.
-            await hc("attr", "tags.focus.floating_focused", "off");
-            let fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
-            if (fcc === "0") {
-                await new Promise((r) => setTimeout(r, 80));
-                fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
-            }
-            if (fcc === "0" && orig) {
+            // CLOSE OUT of the floating layer: un-float the focused
+            // float — the register chain re-tiles it into the focused
+            // frame below whatever it holds — then the
+            // floating_focused off follow-up write (a separate
+            // idempotent write: hlwm tracks the register on un-float;
+            // a defensive write INSIDE the chain raced it). Mod-f's
+            // float-focused press only unfocuses the layer; Mod-x is
+            // the register that closes out.
+            if (orig) {
                 await unfloatWid(orig);
             }
+            await hc("attr", "tags.focus.floating_focused", "off");
             return;
         }
 
         // floating_focused FALSE: try focusing a float FIRST — but if
         // the FOCUSED client is ALREADY a float (the post-hand-back
         // edge: the layer register reads false while the float window
-        // still holds focus), just re-assert the layer focus and
-        // PRESERVE the float. Falling through here would YANK it
-        // (re-center it) — not what a second press means.
+        // still holds focus), CLOSE OUT — un-float it (this is the
+        // register key).
         if ((await attrRaw("clients.focus.floating")) === "true") {
-            await hc("attr", "tags.focus.floating_focused", "on");
+            if (orig) await unfloatWid(orig);
+            await hc("attr", "tags.focus.floating_focused", "off");
             return;
         }
         if ((await hc("attr", "tags.focus.floating_focused", "on")) !== null) {
-            // Success: the switched-to float is un-floated (manual
-            // un-float is Mod-x's register). The PRE-SCANNED first_float
-            // is PRIMARY — clients.focus settles late after the switch.
+            // Success: the float layer is focused. The PRE-SCANNED
+            // first_float is PRIMARY — clients.focus settles late after
+            // the switch. GRAB-or-focus: a STABLE-EMPTY focused frame
+            // takes the float (un-float into it — the settle re-read;
+            // hlwm applies the layer switch asynchronously and a
+            // too-early client_count read races it); a POPULATED frame
+            // just focuses the float (jumpto — it keeps floating).
+            let fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            if (fcc === "0") {
+                await new Promise((r) => setTimeout(r, 80));
+                fcc = (await attrRaw("tags.focus.tiling.focused_frame.client_count")) || "0";
+            }
             const wfocus = firstFloat || (await attrRaw("clients.focus.winid"));
             if (wfocus) {
-                await unfloatWid(wfocus);
+                if (fcc === "0") {
+                    await unfloatWid(wfocus);
+                } else {
+                    await hc("jumpto", wfocus);
+                }
                 return;
             }
             await hc("attr", "tags.focus.floating_focused", "off");
