@@ -35,12 +35,14 @@ export default defineCommand({
         switchtag: option(z.enum(["on", "off"]).optional(), {
             description: "follow the window to its tag", short: "s",
         }),
-        focus: option(z.coerce.boolean().default(false), {
+        focus: option(z.boolean().default(false), {
             description: "focus the new client", short: "F",
+            argumentKind: "flag",
         }),
-        center: option(z.coerce.boolean().default(false), {
+        center: option(z.boolean().default(false), {
             description:
                 "float + focus + follow + center the window (guard-dialog preset)", short: "C",
+            argumentKind: "flag",
         }),
         cmd: option(z.string().min(1).optional(), {
             description:

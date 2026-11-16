@@ -40,6 +40,11 @@ import minimize from "./commands/minimize.js";
 import splitNew from "./commands/split-new.js";
 import splitLaunch from "./commands/split-launch.js";
 import closeTiling from "./commands/close-tiling.js";
+import expand from "./commands/expand.js";
+import openCmd from "./commands/open.js";
+import runCmd from "./commands/run.js";
+import terminalCmd from "./commands/terminal.js";
+import commandCmd from "./commands/command.js";
 
 import { name, version, description } from "../package.json" with { type: "json" };
 
@@ -55,6 +60,8 @@ for (const command of [
   newCmd, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
   closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus, reload,
   center, fit, corner, resize, tile, spawn, move, minimize, splitNew, splitLaunch, closeTiling,
+  expand,
+  openCmd, runCmd, terminalCmd, commandCmd,
 ]) {
   cli.command(command);
 }
@@ -66,7 +73,10 @@ for (const command of [
 // <verb>` and `<verb> help` delegate to the verb's own --help.
 const argv = process.argv.slice(2);
 if (argv.length === 0) {
-  process.argv = [process.argv[0], process.argv[1], "--help"];
+  // Bare `herbctl` is the palette shorthand: the command palette IS
+  // the entry verb (Tab completes a single command via `herbctl run`,
+  // Return runs it silently). --help and `help` keep the root help.
+  process.argv = [process.argv[0], process.argv[1], "command"];
 } else if (argv[0] === "help") {
   const rest = argv.slice(1);
   // cli.run() re-reads process.argv — rewrite it, not the slice

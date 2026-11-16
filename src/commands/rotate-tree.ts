@@ -16,6 +16,7 @@ export default defineCommand({
     options: {
         focus: option(z.boolean().default(false), {
             description: "Force the focus/cycle branch (never rotate)",
+            argumentKind: "flag",
         }),
         smart: option(
             z.preprocess(

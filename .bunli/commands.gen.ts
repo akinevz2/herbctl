@@ -6,35 +6,43 @@ import { createGeneratedHelpers, registerGeneratedStore } from '@bunli/core'
 
 import Center from '../src/commands/center.js'
 import CloseTiling from '../src/commands/close-tiling.js'
+import Command from '../src/commands/command.js'
 import Corner from '../src/commands/corner.js'
 import Fit from '../src/commands/fit.js'
 import Minimize from '../src/commands/minimize.js'
 import Move from '../src/commands/move.js'
 import New from '../src/commands/new.js'
+import Open from '../src/commands/open.js'
 import Resize from '../src/commands/resize.js'
 import RotateTree from '../src/commands/rotate-tree.js'
+import Run from '../src/commands/run.js'
 import Spawn from '../src/commands/spawn.js'
 import SplitLaunch from '../src/commands/split-launch.js'
 import SplitNew from '../src/commands/split-new.js'
+import Terminal from '../src/commands/terminal.js'
 import Tile from '../src/commands/tile.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['center', 'close-tiling', 'corner', 'fit', 'minimize', 'move', 'new', 'resize', 'rotate-tree', 'spawn', 'split-launch', 'split-new', 'tile'] as const
+const names = ['center', 'close-tiling', 'command', 'corner', 'fit', 'minimize', 'move', 'new', 'open', 'resize', 'rotate-tree', 'run', 'spawn', 'split-launch', 'split-new', 'terminal', 'tile'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
   'center': Center,
   'close-tiling': CloseTiling,
+  'command': Command,
   'corner': Corner,
   'fit': Fit,
   'minimize': Minimize,
   'move': Move,
   'new': New,
+  'open': Open,
   'resize': Resize,
   'rotate-tree': RotateTree,
+  'run': Run,
   'spawn': Spawn,
   'split-launch': SplitLaunch,
   'split-new': SplitNew,
+  'terminal': Terminal,
   'tile': Tile
 } as const
 
@@ -54,6 +62,14 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       name: 'close-tiling',
       description: 'Close on tiling layer',
       path: './src/commands/close-tiling'
+    },
+  'command': {
+      name: 'command',
+      description: 'Rofi command palette over the helper scripts (the hc_command)',
+      options: {
+        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'extra name prefixes to list (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":4245,"end":4247,"loc":{"start":{"line":107,"column":50,"index":4245},"end":{"line":107,"column":52,"index":4247}},"elements":[]}}]}, validator: '(val) => true' }
+      },
+      path: './src/commands/command'
     },
   'corner': {
       name: 'corner',
@@ -104,6 +120,14 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       description: 'Allocate and switch to: frame, tag',
       path: './src/commands/new'
     },
+  'open': {
+      name: 'open',
+      description: 'Browse directories in rofi: open a terminal in one, view files',
+      options: {
+        'all': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'include hidden entries (short: -a)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3111,"end":3116,"loc":{"start":{"line":89,"column":40,"index":3111},"end":{"line":89,"column":45,"index":3116}},"value":false}}]}, validator: '(val) => true' }
+      },
+      path: './src/commands/open'
+    },
   'resize': {
       name: 'resize',
       description: 'Resize floating client',
@@ -123,9 +147,14 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       description: 'Rotate the tree',
       options: {
         'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Force the focus/cycle branch (never rotate)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":728,"end":733,"loc":{"start":{"line":17,"column":42,"index":728},"end":{"line":17,"column":47,"index":733}},"value":false}}]}, validator: '(val) => true' },
-        'smart': { type: 'z.preprocess', required: true, hasDefault: false, description: 'Rotate frame_count >= N frames, cycle backwards below (default 3)', schema: {"type":"zod","method":"preprocess","args":[{"type":"unknown","raw":{"type":"ArrowFunctionExpression","start":887,"end":916,"loc":{"start":{"line":22,"column":16,"index":887},"end":{"line":22,"column":45,"index":916}},"id":null,"generator":false,"async":false,"params":[{"type":"Identifier","start":888,"end":889,"loc":{"start":{"line":22,"column":17,"index":888},"end":{"line":22,"column":18,"index":889},"identifierName":"v"},"name":"v"}],"body":{"type":"ConditionalExpression","start":895,"end":915,"loc":{"start":{"line":22,"column":24,"index":895},"end":{"line":22,"column":44,"index":915}},"test":{"type":"BinaryExpression","start":895,"end":907,"loc":{"start":{"line":22,"column":24,"index":895},"end":{"line":22,"column":36,"index":907}},"left":{"type":"Identifier","start":895,"end":896,"loc":{"start":{"line":22,"column":24,"index":895},"end":{"line":22,"column":25,"index":896},"identifierName":"v"},"name":"v"},"operator":"===","right":{"type":"StringLiteral","start":901,"end":907,"loc":{"start":{"line":22,"column":30,"index":901},"end":{"line":22,"column":36,"index":907}},"extra":{"rawValue":"true","raw":"\"true\""},"value":"true"}},"consequent":{"type":"NumericLiteral","start":910,"end":911,"loc":{"start":{"line":22,"column":39,"index":910},"end":{"line":22,"column":40,"index":911}},"extra":{"rawValue":3,"raw":"3"},"value":3},"alternate":{"type":"Identifier","start":914,"end":915,"loc":{"start":{"line":22,"column":43,"index":914},"end":{"line":22,"column":44,"index":915},"identifierName":"v"},"name":"v"},"extra":{"parenthesized":true,"parenStart":894}}}},{"type":"zod","method":"optional","args":[]}]}, validator: '(val) => true' }
+        'smart': { type: 'z.preprocess', required: true, hasDefault: false, description: 'Rotate frame_count >= N frames, cycle backwards below (default 3)', schema: {"type":"zod","method":"preprocess","args":[{"type":"unknown","raw":{"type":"ArrowFunctionExpression","start":921,"end":950,"loc":{"start":{"line":23,"column":16,"index":921},"end":{"line":23,"column":45,"index":950}},"id":null,"generator":false,"async":false,"params":[{"type":"Identifier","start":922,"end":923,"loc":{"start":{"line":23,"column":17,"index":922},"end":{"line":23,"column":18,"index":923},"identifierName":"v"},"name":"v"}],"body":{"type":"ConditionalExpression","start":929,"end":949,"loc":{"start":{"line":23,"column":24,"index":929},"end":{"line":23,"column":44,"index":949}},"test":{"type":"BinaryExpression","start":929,"end":941,"loc":{"start":{"line":23,"column":24,"index":929},"end":{"line":23,"column":36,"index":941}},"left":{"type":"Identifier","start":929,"end":930,"loc":{"start":{"line":23,"column":24,"index":929},"end":{"line":23,"column":25,"index":930},"identifierName":"v"},"name":"v"},"operator":"===","right":{"type":"StringLiteral","start":935,"end":941,"loc":{"start":{"line":23,"column":30,"index":935},"end":{"line":23,"column":36,"index":941}},"extra":{"rawValue":"true","raw":"\"true\""},"value":"true"}},"consequent":{"type":"NumericLiteral","start":944,"end":945,"loc":{"start":{"line":23,"column":39,"index":944},"end":{"line":23,"column":40,"index":945}},"extra":{"rawValue":3,"raw":"3"},"value":3},"alternate":{"type":"Identifier","start":948,"end":949,"loc":{"start":{"line":23,"column":43,"index":948},"end":{"line":23,"column":44,"index":949},"identifierName":"v"},"name":"v"},"extra":{"parenthesized":true,"parenStart":928}}}},{"type":"zod","method":"optional","args":[]}]}, validator: '(val) => true' }
       },
       path: './src/commands/rotate-tree'
+    },
+  'run': {
+      name: 'run',
+      description: 'Rofi completion palette over a command\'s help; Shift-Return descends',
+      path: './src/commands/run'
     },
   'spawn': {
       name: 'spawn',
@@ -137,8 +166,8 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
         'tag': { type: 'z.string.optional', required: false, hasDefault: false, description: 'tag NAME to place the window on', short: 'a', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'floating': { type: 'z.enum.optional', required: false, hasDefault: false, description: 'floating consequence (center via --center)', short: 'f', enumValues: ["on","off"], schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'switchtag': { type: 'z.enum.optional', required: false, hasDefault: false, description: 'follow the window to its tag', short: 's', enumValues: ["on","off"], schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'focus': { type: 'z.coerce.boolean.default', required: true, hasDefault: true, default: false, description: 'focus the new client', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1596,"end":1601,"loc":{"start":{"line":38,"column":49,"index":1596},"end":{"line":38,"column":54,"index":1601}},"value":false}}]}, validator: '(val) => true' },
-        'center': { type: 'z.coerce.boolean.default', required: true, hasDefault: true, default: false, description: 'float + focus + follow + center the window (guard-dialog preset)', short: 'C', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1729,"end":1734,"loc":{"start":{"line":41,"column":50,"index":1729},"end":{"line":41,"column":55,"index":1734}},"value":false}}]}, validator: '(val) => true' },
+        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'focus the new client', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1589,"end":1594,"loc":{"start":{"line":38,"column":42,"index":1589},"end":{"line":38,"column":47,"index":1594}},"value":false}}]}, validator: '(val) => true' },
+        'center': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float + focus + follow + center the window (guard-dialog preset)', short: 'C', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1749,"end":1754,"loc":{"start":{"line":42,"column":43,"index":1749},"end":{"line":42,"column":48,"index":1754}},"value":false}}]}, validator: '(val) => true' },
         'cmd': { type: 'z.string.min.optional', required: false, hasDefault: false, description: 'spawn via shell from a STRING (use when the command has flag-like args; \'--\' positional can\'t shield dash tokens)', min: 1, minLength: 1, schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
       path: './src/commands/spawn'
@@ -152,6 +181,17 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       name: 'split-new',
       description: 'Split auto + tile',
       path: './src/commands/split-new'
+    },
+  'terminal': {
+      name: 'terminal',
+      description: 'Spawn $TERMINAL running a command string (the migrated launch_alacritty)',
+      options: {
+        'floating': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float the terminal once it attaches (rule-owned)', short: 'f', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":982,"end":987,"loc":{"start":{"line":22,"column":45,"index":982},"end":{"line":22,"column":50,"index":987}},"value":false}}]}, validator: '(val) => true' },
+        'urgent': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'raise the urgent hint post-attach (no focus steal)', short: 'u', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1170,"end":1175,"loc":{"start":{"line":26,"column":43,"index":1170},"end":{"line":26,"column":48,"index":1175}},"value":false}}]}, validator: '(val) => true' },
+        'no-distract': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the terminal does NOT take focus on attach', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1367,"end":1372,"loc":{"start":{"line":30,"column":50,"index":1367},"end":{"line":30,"column":55,"index":1372}},"value":false}}]}, validator: '(val) => true' },
+        'directory': { type: 'z.string.optional', required: false, hasDefault: false, description: 'cd into <dir> first (a leading ~ is expanded)', short: 'd', fileType: 'directory', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
+      },
+      path: './src/commands/terminal'
     },
   'tile': {
       name: 'tile',
