@@ -503,7 +503,7 @@ describe("CLI verbs", () => {
         const names: string[] = [];
         for (const verb of ["get-south", "get-forward", "get-deck", "get-dedeck", "explode-frame",
             "focus-frame-left", "shift-up", "rotate-tree", "shift-down", "split-down",
-            "shift-left", "shift-right", "new-frame", "close-or-remove", "xkill-or-close",
+            "shift-left", "shift-right", "new", "close-or-remove", "xkill-or-close",
             "split-right-cycle", "focus-frame-down", "split-right-focus", "split-bottom-focus", "close-window",
             "fullscreen-toggle", "minimize-toggle"]) {
             const cmd = (await import(`../src/commands/${verb}`)).default;
@@ -512,7 +512,7 @@ describe("CLI verbs", () => {
         expect(names).toEqual([
             "get-south", "get-forward", "get-deck", "get-dedeck", "explode-frame",
             "focus-frame-left", "shift-up", "rotate-tree", "shift-down", "split-down",
-            "shift-left", "shift-right", "new-frame", "close-or-remove", "xkill-or-close",
+            "shift-left", "shift-right", "new", "close-or-remove", "xkill-or-close",
             "split-right-cycle", "focus-frame-down", "split-right-focus", "split-bottom-focus", "close-window",
             "fullscreen-toggle", "minimize-toggle",
         ]);

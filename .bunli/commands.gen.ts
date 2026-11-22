@@ -10,6 +10,7 @@ import Corner from '../src/commands/corner.js'
 import Fit from '../src/commands/fit.js'
 import Minimize from '../src/commands/minimize.js'
 import Move from '../src/commands/move.js'
+import New from '../src/commands/new.js'
 import Resize from '../src/commands/resize.js'
 import RotateTree from '../src/commands/rotate-tree.js'
 import Spawn from '../src/commands/spawn.js'
@@ -18,7 +19,7 @@ import SplitNew from '../src/commands/split-new.js'
 import Tile from '../src/commands/tile.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['center', 'close-tiling', 'corner', 'fit', 'minimize', 'move', 'resize', 'rotate-tree', 'spawn', 'split-launch', 'split-new', 'tile'] as const
+const names = ['center', 'close-tiling', 'corner', 'fit', 'minimize', 'move', 'new', 'resize', 'rotate-tree', 'spawn', 'split-launch', 'split-new', 'tile'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
@@ -28,6 +29,7 @@ const modules: Record<GeneratedNames, Command<any>> = {
   'fit': Fit,
   'minimize': Minimize,
   'move': Move,
+  'new': New,
   'resize': Resize,
   'rotate-tree': RotateTree,
   'spawn': Spawn,
@@ -96,6 +98,11 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
         'foreground': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Foreground the float session after: floating_focused on + jumpto + bring', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1817,"end":1822,"loc":{"start":{"line":39,"column":43,"index":1817},"end":{"line":39,"column":48,"index":1822}},"value":false}}]}, validator: '(val) => true' }
       },
       path: './src/commands/move'
+    },
+  'new': {
+      name: 'new',
+      description: 'Allocate and switch to: frame, tag',
+      path: './src/commands/new'
     },
   'resize': {
       name: 'resize',

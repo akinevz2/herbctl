@@ -23,7 +23,7 @@ import shiftUp from "./commands/shift-up.js";
 import shiftDown from "./commands/shift-down.js";
 import getSouth from "./commands/get-south.js";
 import shiftRight from "./commands/shift-right.js";
-import newFrame from "./commands/new-frame.js";
+import newCmd from "./commands/new.js";
 import splitRightCycle from "./commands/split-right-cycle.js";
 import splitRightFocus from "./commands/split-right-focus.js";
 import xkillOrClose from "./commands/xkill-or-close.js";
@@ -52,7 +52,7 @@ const cli = await createCLI({
 for (const command of [
   getSouth, getForward, getDeck, getDedeck, explodeFrame, focusFrameLeft,
   shiftUp, rotateTree, shiftDown, splitDown, shiftLeft, shiftRight,
-  newFrame, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
+  newCmd, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
   closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus, reload,
   center, fit, corner, resize, tile, spawn, move, minimize, splitNew, splitLaunch, closeTiling,
 ]) {
