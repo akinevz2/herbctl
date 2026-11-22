@@ -1,4 +1,5 @@
-// src/commands/resize.ts — the migrated hc_resize (legacy argv parity:
+// src/lib/verb-resize.ts — the resize VERB (dispatched via `herbctl
+// float resize; the migrated hc_resize legacy-argv parity).
 // what hc_zoom / the shim feed it).
 //
 //   hc_resize [-10 | 40] ... — bunli cannot safely take dash-prefixed
@@ -12,9 +13,9 @@
 import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
-import { attr } from "../lib/hc.js";
-import { resizeDelta, resizeFill, resizeToRect } from "../lib/resize.js";
-import { layerMods, layerOptions, withLayerMods } from "../lib/layers.js";
+import { attr } from "./hc.js";
+import { resizeDelta, resizeFill, resizeToRect } from "./resize.js";
+import { layerMods, layerOptions, withLayerMods } from "./layers.js";
 
 export default defineCommand({
     name: "resize" as never,

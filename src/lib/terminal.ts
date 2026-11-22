@@ -35,6 +35,7 @@
 // machinery: that is for graphical apps.
 import { existsSync, statSync } from "node:fs";
 import { hc, setAttr } from "./hc.js";
+import { spawnEnv } from "./rofi.js";
 
 export interface TerminalOptions {
     /** The command STRING (bash -ic), or null for a login shell. */
@@ -90,18 +91,20 @@ function watchUrgent(before: Set<string>): void {
 }
 
 /**
- * Spawn the terminal, detached and WM-managed. Fire-and-forget: every
- * failure path is silent (the dots fail-soft convention — a failed
- * spawn must never wedge the keybind).
+ * Spawn the terminal, detached and rule-scoped. Resolves the child
+ * pid (the caller may close the terminal later — the run palette
+ * closes its pager help-terminals when the rofi session ends), or
+ * null on any failure (the dots fail-soft convention — a failed spawn
+ * must never wedge the keybind).
  */
-export async function launchTerminal(opts: TerminalOptions): Promise<void> {
+export async function launchTerminal(opts: TerminalOptions): Promise<number | null> {
     let dir = opts.directory ?? "";
     if (dir !== "") {
         if (dir.startsWith("~")) dir = `${process.env.HOME}${dir.slice(1)}`;
         try {
             if (!statSync(dir).isDirectory()) throw new Error("not a directory");
         } catch {
-            return; // no such directory — fail soft
+            return null; // no such directory — fail soft
         }
     }
 
@@ -138,13 +141,28 @@ export async function launchTerminal(opts: TerminalOptions): Promise<void> {
 
     const before = opts.urgent ? await clientIds() : new Set<string>();
     await hc("lock");
+    let pid: number | null = null;
     try {
         if (rule.length > 0) {
             await hc("rule", "once", `class~${classPattern(terminal)}`, ...rule);
         }
-        await hc("spawn", terminal, "-e", "bash", "-ic", inner);
+        // Spawned DIRECTLY (detached) rather than via `herbstclient
+        // spawn`: the caller gets the child pid back, which the run
+        // palette uses to CLOSE its pager help-terminals when the rofi
+        // session ends. The once-rule still applies — it fires on the
+        // window attach, not on who exec'd it.
+        const child = Bun.spawn([terminal, "-e", "bash", "-ic", inner], {
+            detached: true,
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "ignore",
+            env: spawnEnv(),
+        });
+        child.unref();
+        pid = child.pid;
     } finally {
         await hc("unlock");
     }
     if (opts.urgent) watchUrgent(before);
+    return pid;
 }

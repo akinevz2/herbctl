@@ -13,9 +13,9 @@
 import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
-import { attr } from "../lib/hc.js";
-import { centerWindowInOwnFrame, placeCenteredIn } from "../lib/geometry.js";
-import { layerMods, layerOptions, withLayerMods } from "../lib/layers.js";
+import { attr } from "./hc.js";
+import { centerWindowInOwnFrame, placeCenteredIn } from "./geometry.js";
+import { layerMods, layerOptions, withLayerMods } from "./layers.js";
 
 export default defineCommand({
     name: "center" as never,

@@ -9,9 +9,9 @@
 import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
-import { attr, setAttr } from "../lib/hc.js";
-import { computeQuadrant, writeQuadrant } from "../lib/geometry.js";
-import { layerMods, layerOptions, withLock } from "../lib/layers.js";
+import { attr, setAttr } from "./hc.js";
+import { computeQuadrant, writeQuadrant } from "./geometry.js";
+import { layerMods, layerOptions, withLock } from "./layers.js";
 
 export default defineCommand({
     name: "corner" as never,

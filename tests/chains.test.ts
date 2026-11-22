@@ -495,44 +495,58 @@ describe("small imperatives", () => {
     });
 });
 
-// The CLI verbs: every functional name is registered, and dispatching
-// a command object runs the same chain the function does.
+// The CLI verbs: the collapsed surfaces (jump/shift) dispatch the same
+// chain the functions do.
 describe("CLI verbs", () => {
-    test("all 22 chain verbs are registered under their functional names", async () => {
-        const mod = await import("../src/commands/get-deck");
-        const names: string[] = [];
-        for (const verb of ["get-south", "get-forward", "get-deck", "get-dedeck", "explode-frame",
-            "focus-frame-left", "shift-up", "rotate-tree", "shift-down", "split-down",
-            "shift-left", "shift-right", "new", "close-or-remove", "xkill-or-close",
-            "split-right-cycle", "focus-frame-down", "split-right-focus", "split-bottom-focus", "close-window",
-            "fullscreen-toggle", "minimize-toggle"]) {
-            const cmd = (await import(`../src/commands/${verb}`)).default;
-            names.push(String((cmd as { name: string }).name));
-        }
-        expect(names).toEqual([
-            "get-south", "get-forward", "get-deck", "get-dedeck", "explode-frame",
-            "focus-frame-left", "shift-up", "rotate-tree", "shift-down", "split-down",
-            "shift-left", "shift-right", "new", "close-or-remove", "xkill-or-close",
-            "split-right-cycle", "focus-frame-down", "split-right-focus", "split-bottom-focus", "close-window",
-            "fullscreen-toggle", "minimize-toggle",
-        ]);
-        expect(mod.default).toBeDefined();
+    test("jump dispatches each direction to its machine", async () => {
+        const { default: jump } = await import("../src/commands/jump");
+        const run = (arg: string) =>
+            (jump as unknown as { handler: (i: never) => Promise<void> })
+                .handler({ positional: [arg] } as never);
+        await run("deck");
+        const deckChain = log().at(-1);
+        await run("south");
+        expect(log().at(-1)).not.toEqual(deckChain);
     });
 
-    test("the get-deck verb dispatches the same chain as the function", async () => {
-        const { default: deck } = await import("../src/commands/get-deck");
-        await (deck as unknown as { handler: (i: never) => Promise<void> }).handler(undefined as never);
+    test("shift dispatches each direction to its machine", async () => {
+        const { default: shift } = await import("../src/commands/shift");
+        const run = (arg: string) =>
+            (shift as unknown as { handler: (i: never) => Promise<void> })
+                .handler({ positional: [arg] } as never);
+        await run("left");
         expect(log()).toEqual([
             [
                 "or",
-                ",", "and",
-                ".", "compare", "tags.focus.curframe_wcount", "gt", "3",
-                ".", "cycle_layout", "+1", "max", "vertical", "grid", "horizontal",
-                ",", "and",
-                ".", "compare", "tags.focus.curframe_wcount", "=", "2",
-                ".", "cycle_layout", "+1", "vertical", "max", "horizontal",
-                ",", "cycle_layout", "-1", "vertical", "horizontal", "max",
+                ",", "shift", "left",
+                ",", "focus", "left", "--level=frame",
+                ",", "chain", ".", "split", "left", ".", "shift", "left",
             ],
         ]);
+    });
+
+    test("frame dispatches directions and modifiers to their machines", async () => {
+        const { default: frame } = await import("../src/commands/frame");
+        const run = (positional: string[], flags: Record<string, boolean> = {}) =>
+            (frame as unknown as { handler: (i: never) => Promise<void> })
+                .handler({ positional, flags } as never);
+        await run(["right"], { cycle: true });
+        expect(log()).toEqual([["chain", ",", "split", "right", "0.5", ",", "cycle_frame"]]);
+        await run(["left"]);
+        expect(log()).not.toEqual([["chain", ",", "split", "right", "0.5", ",", "cycle_frame"]]);
+        await expect(run(["right"], { shift: true }))
+            .rejects.toThrow("--shift only combines with 'down'");
+    });
+
+    test("unknown directions fail with the usage error", async () => {
+        const { default: jump } = await import("../src/commands/jump");
+        const { default: shift } = await import("../src/commands/shift");
+        for (const verb of [jump, shift]) {
+            const handler =
+                (verb as unknown as { handler: (i: never) => Promise<void> })
+                    .handler;
+            await expect(handler({ positional: ["nonsense"] } as never))
+                .rejects.toThrow("Usage:");
+        }
     });
 });

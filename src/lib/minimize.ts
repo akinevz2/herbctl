@@ -12,7 +12,7 @@
 import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
-import { attr, hc } from "../lib/hc.js";
+import { attr, hc } from "./hc.js";
 
 export default defineCommand({
     name: "minimize" as never,

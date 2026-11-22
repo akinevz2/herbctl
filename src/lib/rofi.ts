@@ -77,6 +77,10 @@ export async function rofiMenu(
         "-kb-accept-custom", "",
         "-kb-accept-custom-alt", "",
         "-kb-element-next", "",
+        // Word-delete on the explicit bindings (default rofi only wires
+        // Alt+BackSpace, which is easy to miss): Ctrl+BackSpace and
+        // Alt+BackSpace both delete a whole word left of the caret.
+        "-kb-remove-word-back", "Control+BackSpace,Alt+BackSpace",
         "-kb-custom-1", "Shift+Return",
         "-kb-custom-2", "Control+Shift+Return",
         "-kb-custom-3", "Tab",
@@ -102,11 +106,10 @@ export async function rofiMenu(
 /**
  * Run a command line in a floating temporary terminal (the palette's
  * Shift-Return behavior): the output is the point, and the terminal
- * never disturbs the tiling layout. Falls back to a detached silent
- * run when the WM is unreachable (the terminal machine is
- * herbstclient-driven).
+ * never disturbs the tiling layout. Resolves the terminal's pid (for
+ * the tracked help-terminals) or null when the spawn failed.
  */
-export async function runInTerminal(commandLine: string): Promise<void> {
+export async function runInTerminal(commandLine: string): Promise<number | null> {
     const { launchTerminal } = await import("./terminal.js");
-    await launchTerminal({ command: commandLine, floating: true });
+    return await launchTerminal({ command: commandLine, floating: true });
 }

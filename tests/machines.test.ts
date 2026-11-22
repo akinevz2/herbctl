@@ -941,14 +941,13 @@ describe("floatUnfocus ($Mod-x port)", () => {
 });
 
 // The CLI verbs of the machines: registered under their functional
-// names (the get-* set, no mod-* aliases in herbctl).
+// names (zoom stays a bare verb; the float machines collapsed into
+// `float <yank|focus|unfocus>`).
 describe("machine CLI verbs", () => {
-    test("get-zoom / get-extracted / get-focus are registered", async () => {
+    test("zoom is registered; float machines dispatch via the float verb", async () => {
         const zoom = (await import("../src/commands/zoom")).default;
-        const extracted = (await import("../src/commands/float-yank")).default;
-        const focus = (await import("../src/commands/float-focus")).default;
+        const float = (await import("../src/commands/float")).default;
         expect((zoom as { name: string }).name).toBe("zoom");
-        expect((extracted as { name: string }).name).toBe("float-yank");
-        expect((focus as { name: string }).name).toBe("float-focus");
+        expect((float as { name: string }).name).toBe("float");
     });
 });

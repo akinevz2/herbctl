@@ -50,6 +50,18 @@ describe("parseHelpCompletions", () => {
         expect(parseHelpCompletions(text)).toEqual([]);
     });
 
+    test("extracts <a|b|c> enum slots from usage lines", () => {
+        const text = [
+            "Usage: herbctl frame <left|down|right|bottom|new|explode> [--cycle]",
+            "",
+            "Options:",
+            "  --cycle, -c  the cycle variant of the direction",
+        ].join("\n");
+        expect(parseHelpCompletions(text)).toEqual([
+            "left", "down", "right", "bottom", "new", "explode", "--cycle",
+        ]);
+    });
+
     test("filters stoplist headings", () => {
         const text = [
             "Commands:",

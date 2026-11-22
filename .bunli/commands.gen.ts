@@ -4,105 +4,73 @@
 import type { Command, CLI, GeneratedOptionMeta, RegisteredCommands, CommandOptions, GeneratedCommandMeta } from '@bunli/core'
 import { createGeneratedHelpers, registerGeneratedStore } from '@bunli/core'
 
-import Center from '../src/commands/center.js'
-import CloseTiling from '../src/commands/close-tiling.js'
-import Command from '../src/commands/command.js'
-import Corner from '../src/commands/corner.js'
-import Fit from '../src/commands/fit.js'
-import Minimize from '../src/commands/minimize.js'
+import Close from '../src/commands/close.js'
+import Float from '../src/commands/float.js'
+import Frame from '../src/commands/frame.js'
+import Jump from '../src/commands/jump.js'
 import Move from '../src/commands/move.js'
 import New from '../src/commands/new.js'
 import Open from '../src/commands/open.js'
-import Resize from '../src/commands/resize.js'
 import RotateTree from '../src/commands/rotate-tree.js'
 import Run from '../src/commands/run.js'
+import Shift from '../src/commands/shift.js'
 import Spawn from '../src/commands/spawn.js'
-import SplitLaunch from '../src/commands/split-launch.js'
-import SplitNew from '../src/commands/split-new.js'
-import Terminal from '../src/commands/terminal.js'
+import Split from '../src/commands/split.js'
 import Tile from '../src/commands/tile.js'
+import Toggle from '../src/commands/toggle.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['center', 'close-tiling', 'command', 'corner', 'fit', 'minimize', 'move', 'new', 'open', 'resize', 'rotate-tree', 'run', 'spawn', 'split-launch', 'split-new', 'terminal', 'tile'] as const
+const names = ['close', 'float', 'frame', 'jump', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tile', 'toggle'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
-  'center': Center,
-  'close-tiling': CloseTiling,
-  'command': Command,
-  'corner': Corner,
-  'fit': Fit,
-  'minimize': Minimize,
+  'close': Close,
+  'float': Float,
+  'frame': Frame,
+  'jump': Jump,
   'move': Move,
   'new': New,
   'open': Open,
-  'resize': Resize,
   'rotate-tree': RotateTree,
   'run': Run,
+  'shift': Shift,
   'spawn': Spawn,
-  'split-launch': SplitLaunch,
-  'split-new': SplitNew,
-  'terminal': Terminal,
-  'tile': Tile
+  'split': Split,
+  'tile': Tile,
+  'toggle': Toggle
 } as const
 
 const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
-  'center': {
-      name: 'center',
-      description: 'Center the focused window',
-      options: {
-        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Center THIS specific window within its OWN parent frame instead of the focused one (old centerInFrame semantics; no float toggling)', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'to-float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Float the window ON first (idempotent when already floating)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1478,"end":1483,"loc":{"start":{"line":31,"column":43,"index":1478},"end":{"line":31,"column":48,"index":1483}},"value":false}}]}, validator: '(val) => true' },
-        'to-tiling': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Un-float the window first (the un-float chain)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1655,"end":1660,"loc":{"start":{"line":35,"column":44,"index":1655},"end":{"line":35,"column":49,"index":1660}},"value":false}}]}, validator: '(val) => true' },
-        'foreground': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Foreground the float session after: floating_focused on + jumpto + bring', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1817,"end":1822,"loc":{"start":{"line":39,"column":43,"index":1817},"end":{"line":39,"column":48,"index":1822}},"value":false}}]}, validator: '(val) => true' }
-      },
-      path: './src/commands/center'
+  'close': {
+      name: 'close',
+      description: 'close <or-remove|window|tiling|xkill>',
+      path: './src/commands/close'
     },
-  'close-tiling': {
-      name: 'close-tiling',
-      description: 'Close on tiling layer',
-      path: './src/commands/close-tiling'
-    },
-  'command': {
-      name: 'command',
-      description: 'Rofi command palette over the helper scripts (the hc_command)',
+  'float': {
+      name: 'float',
+      description: 'float <yank|focus|unfocus|center|fit|corner|resize>',
       options: {
-        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'extra name prefixes to list (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":4245,"end":4247,"loc":{"start":{"line":107,"column":50,"index":4245},"end":{"line":107,"column":52,"index":4247}},"elements":[]}}]}, validator: '(val) => true' }
+        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Target THIS window (center/fit/corner/resize)', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
+        'target': { type: 'z.enum.default', required: true, hasDefault: true, default: "monitor", description: 'fit: rectangle to fit within', short: 't', enumValues: ["monitor","frame"], schema: {"type":"zod","method":"default","args":[{"type":"literal","value":"monitor"}]}, validator: '(val) => true' },
+        'dx': { type: 'z.coerce.number.default', required: true, hasDefault: true, default: 0, description: 'resize: width delta (pixels)', short: 'x', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"NumericLiteral","start":2622,"end":2623,"loc":{"start":{"line":65,"column":45,"index":2622},"end":{"line":65,"column":46,"index":2623}},"extra":{"rawValue":0,"raw":"0"},"value":0}}]}, validator: '(val) => true' },
+        'dy': { type: 'z.coerce.number.default', required: true, hasDefault: true, default: 0, description: 'resize: height delta (pixels)', short: 'y', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"NumericLiteral","start":2754,"end":2755,"loc":{"start":{"line":68,"column":45,"index":2754},"end":{"line":68,"column":46,"index":2755}},"extra":{"rawValue":0,"raw":"0"},"value":0}}]}, validator: '(val) => true' },
+        'mode': { type: 'z.string.optional', required: false, hasDefault: false, description: 'resize: \'frame\' to fill the parent frame, or an explicit WxH+X+Y rect', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
-      path: './src/commands/command'
+      path: './src/commands/float'
     },
-  'corner': {
-      name: 'corner',
-      description: 'Pin float to top-left quadrant',
+  'frame': {
+      name: 'frame',
+      description: 'frame <left|down|right|bottom|new|explode>',
       options: {
-        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Pin THIS window instead of the focused one', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'to-float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Float the window ON first (idempotent when already floating)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1478,"end":1483,"loc":{"start":{"line":31,"column":43,"index":1478},"end":{"line":31,"column":48,"index":1483}},"value":false}}]}, validator: '(val) => true' },
-        'to-tiling': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Un-float the window first (the un-float chain)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1655,"end":1660,"loc":{"start":{"line":35,"column":44,"index":1655},"end":{"line":35,"column":49,"index":1660}},"value":false}}]}, validator: '(val) => true' },
-        'foreground': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Foreground the float session after: floating_focused on + jumpto + bring', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1817,"end":1822,"loc":{"start":{"line":39,"column":43,"index":1817},"end":{"line":39,"column":48,"index":1822}},"value":false}}]}, validator: '(val) => true' }
+        'cycle': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the cycle variant of the direction (frame right)', short: 'c', fileType: 'directory', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1502,"end":1507,"loc":{"start":{"line":40,"column":42,"index":1502},"end":{"line":40,"column":47,"index":1507}},"value":false}}]}, validator: '(val) => true' },
+        'shift': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the window-shift variant (frame down --shift)', short: 's', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1701,"end":1706,"loc":{"start":{"line":45,"column":42,"index":1701},"end":{"line":45,"column":47,"index":1706}},"value":false}}]}, validator: '(val) => true' }
       },
-      path: './src/commands/corner'
+      path: './src/commands/frame'
     },
-  'fit': {
-      name: 'fit',
-      description: 'Fit float to bounds',
-      options: {
-        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Fit THIS window instead of the focused one', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'target': { type: 'z.enum.default', required: true, hasDefault: true, default: "monitor", description: 'Rectangle to fit within:', short: 't', enumValues: ["monitor","frame"], schema: {"type":"zod","method":"default","args":[{"type":"literal","value":"monitor"}]}, validator: '(val) => true' },
-        'to-float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Float the window ON first (idempotent when already floating)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1478,"end":1483,"loc":{"start":{"line":31,"column":43,"index":1478},"end":{"line":31,"column":48,"index":1483}},"value":false}}]}, validator: '(val) => true' },
-        'to-tiling': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Un-float the window first (the un-float chain)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1655,"end":1660,"loc":{"start":{"line":35,"column":44,"index":1655},"end":{"line":35,"column":49,"index":1660}},"value":false}}]}, validator: '(val) => true' },
-        'foreground': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Foreground the float session after: floating_focused on + jumpto + bring', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1817,"end":1822,"loc":{"start":{"line":39,"column":43,"index":1817},"end":{"line":39,"column":48,"index":1822}},"value":false}}]}, validator: '(val) => true' }
-      },
-      path: './src/commands/fit'
-    },
-  'minimize': {
-      name: 'minimize',
-      description: 'Minimize (hide) a window',
-      options: {
-        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Minimize THIS window (wins over the other targets)', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'frame-selected': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Target the selected client of the current tiling frame', short: 'c', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1109,"end":1114,"loc":{"start":{"line":25,"column":53,"index":1109},"end":{"line":25,"column":58,"index":1114}},"value":false}}]}, validator: '(val) => true' },
-        'float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Target the focused floating window', short: 'f', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1314,"end":1319,"loc":{"start":{"line":30,"column":42,"index":1314},"end":{"line":30,"column":47,"index":1319}},"value":false}}]}, validator: '(val) => true' }
-      },
-      path: './src/commands/minimize'
+  'jump': {
+      name: 'jump',
+      description: 'jump <south|forward|deck|dedeck>',
+      path: './src/commands/jump'
     },
   'move': {
       name: 'move',
@@ -122,25 +90,11 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'open': {
       name: 'open',
-      description: 'Browse directories in rofi: open a terminal in one, view files',
+      description: 'rofi directory browser: terminal in a dir, $EDITOR a file',
       options: {
-        'all': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'include hidden entries (short: -a)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3111,"end":3116,"loc":{"start":{"line":89,"column":40,"index":3111},"end":{"line":89,"column":45,"index":3116}},"value":false}}]}, validator: '(val) => true' }
+        'no-hidden': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'exclude hidden entries (shown by default)', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3284,"end":3289,"loc":{"start":{"line":90,"column":48,"index":3284},"end":{"line":90,"column":53,"index":3289}},"value":false}}]}, validator: '(val) => true' }
       },
       path: './src/commands/open'
-    },
-  'resize': {
-      name: 'resize',
-      description: 'Resize floating client',
-      options: {
-        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Target THIS window instead of the focused one', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'dx': { type: 'z.coerce.number.default', required: true, hasDefault: true, default: 0, description: 'Width delta (pixels)', short: 'x', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"NumericLiteral","start":1188,"end":1189,"loc":{"start":{"line":26,"column":45,"index":1188},"end":{"line":26,"column":46,"index":1189}},"extra":{"rawValue":0,"raw":"0"},"value":0}}]}, validator: '(val) => true' },
-        'dy': { type: 'z.coerce.number.default', required: true, hasDefault: true, default: 0, description: 'Height delta (pixels)', short: 'y', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"NumericLiteral","start":1312,"end":1313,"loc":{"start":{"line":29,"column":45,"index":1312},"end":{"line":29,"column":46,"index":1313}},"extra":{"rawValue":0,"raw":"0"},"value":0}}]}, validator: '(val) => true' },
-        'mode': { type: 'z.string.optional', required: false, hasDefault: false, description: '\'frame\' to fill the client\'s parent frame, or an explicit WxH+X+Y content rect', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'to-float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Float the window ON first (idempotent when already floating)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1478,"end":1483,"loc":{"start":{"line":31,"column":43,"index":1478},"end":{"line":31,"column":48,"index":1483}},"value":false}}]}, validator: '(val) => true' },
-        'to-tiling': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Un-float the window first (the un-float chain)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1655,"end":1660,"loc":{"start":{"line":35,"column":44,"index":1655},"end":{"line":35,"column":49,"index":1660}},"value":false}}]}, validator: '(val) => true' },
-        'foreground': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Foreground the float session after: floating_focused on + jumpto + bring', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1817,"end":1822,"loc":{"start":{"line":39,"column":43,"index":1817},"end":{"line":39,"column":48,"index":1822}},"value":false}}]}, validator: '(val) => true' }
-      },
-      path: './src/commands/resize'
     },
   'rotate-tree': {
       name: 'rotate-tree',
@@ -153,8 +107,16 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'run': {
       name: 'run',
-      description: 'Rofi completion palette over a command\'s help; Shift-Return descends',
+      description: 'palette: bare = helper scripts, <command> = completions',
+      options: {
+        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'command palette: extra name prefixes (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":13084,"end":13086,"loc":{"start":{"line":308,"column":50,"index":13084},"end":{"line":308,"column":52,"index":13086}},"elements":[]}}]}, validator: '(val) => true' }
+      },
       path: './src/commands/run'
+    },
+  'shift': {
+      name: 'shift',
+      description: 'shift <up|down|left|right>',
+      path: './src/commands/shift'
     },
   'spawn': {
       name: 'spawn',
@@ -166,37 +128,35 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
         'tag': { type: 'z.string.optional', required: false, hasDefault: false, description: 'tag NAME to place the window on', short: 'a', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'floating': { type: 'z.enum.optional', required: false, hasDefault: false, description: 'floating consequence (center via --center)', short: 'f', enumValues: ["on","off"], schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'switchtag': { type: 'z.enum.optional', required: false, hasDefault: false, description: 'follow the window to its tag', short: 's', enumValues: ["on","off"], schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'focus the new client', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1589,"end":1594,"loc":{"start":{"line":38,"column":42,"index":1589},"end":{"line":38,"column":47,"index":1594}},"value":false}}]}, validator: '(val) => true' },
-        'center': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float + focus + follow + center the window (guard-dialog preset)', short: 'C', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1749,"end":1754,"loc":{"start":{"line":42,"column":43,"index":1749},"end":{"line":42,"column":48,"index":1754}},"value":false}}]}, validator: '(val) => true' },
-        'cmd': { type: 'z.string.min.optional', required: false, hasDefault: false, description: 'spawn via shell from a STRING (use when the command has flag-like args; \'--\' positional can\'t shield dash tokens)', min: 1, minLength: 1, schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
+        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'focus the new client', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1918,"end":1923,"loc":{"start":{"line":43,"column":42,"index":1918},"end":{"line":43,"column":47,"index":1923}},"value":false}}]}, validator: '(val) => true' },
+        'center': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float + focus + follow + center the window (guard-dialog preset)', short: 'C', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2078,"end":2083,"loc":{"start":{"line":47,"column":43,"index":2078},"end":{"line":47,"column":48,"index":2083}},"value":false}}]}, validator: '(val) => true' },
+        'cmd': { type: 'z.string.min.optional', required: false, hasDefault: false, description: 'spawn via shell from a STRING (use when the command has flag-like args; \'--\' positional can\'t shield dash tokens)', min: 1, minLength: 1, schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
+        'urgent': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'terminal: raise the urgent hint post-attach', short: 'u', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2520,"end":2525,"loc":{"start":{"line":56,"column":43,"index":2520},"end":{"line":56,"column":48,"index":2525}},"value":false}}]}, validator: '(val) => true' },
+        'no-distract': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'terminal: the terminal does NOT take focus on attach', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2710,"end":2715,"loc":{"start":{"line":60,"column":50,"index":2710},"end":{"line":60,"column":55,"index":2715}},"value":false}}]}, validator: '(val) => true' },
+        'directory': { type: 'z.string.optional', required: false, hasDefault: false, description: 'terminal: cd into <dir> first (a leading ~ is expanded)', short: 'd', fileType: 'directory', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
       path: './src/commands/spawn'
     },
-  'split-launch': {
-      name: 'split-launch',
-      description: 'Launch, split for it',
-      path: './src/commands/split-launch'
-    },
-  'split-new': {
-      name: 'split-new',
-      description: 'Split auto + tile',
-      path: './src/commands/split-new'
-    },
-  'terminal': {
-      name: 'terminal',
-      description: 'Spawn $TERMINAL running a command string (the migrated launch_alacritty)',
-      options: {
-        'floating': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float the terminal once it attaches (rule-owned)', short: 'f', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":982,"end":987,"loc":{"start":{"line":22,"column":45,"index":982},"end":{"line":22,"column":50,"index":987}},"value":false}}]}, validator: '(val) => true' },
-        'urgent': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'raise the urgent hint post-attach (no focus steal)', short: 'u', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1170,"end":1175,"loc":{"start":{"line":26,"column":43,"index":1170},"end":{"line":26,"column":48,"index":1175}},"value":false}}]}, validator: '(val) => true' },
-        'no-distract': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the terminal does NOT take focus on attach', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1367,"end":1372,"loc":{"start":{"line":30,"column":50,"index":1367},"end":{"line":30,"column":55,"index":1372}},"value":false}}]}, validator: '(val) => true' },
-        'directory': { type: 'z.string.optional', required: false, hasDefault: false, description: 'cd into <dir> first (a leading ~ is expanded)', short: 'd', fileType: 'directory', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
-      },
-      path: './src/commands/terminal'
+  'split': {
+      name: 'split',
+      description: 'split <new|launch>',
+      path: './src/commands/split'
     },
   'tile': {
       name: 'tile',
       description: 'Tile into empty frame',
       path: './src/commands/tile'
+    },
+  'toggle': {
+      name: 'toggle',
+      description: 'toggle <fullscreen|minimize>',
+      options: {
+        'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'minimize: target THIS window', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
+        'frame-selected': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'minimize: target the selected client of the tiling frame', short: 'c', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1420,"end":1425,"loc":{"start":{"line":33,"column":53,"index":1420},"end":{"line":33,"column":58,"index":1425}},"value":false}}]}, validator: '(val) => true' },
+        'float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'minimize: target the focused floating window', short: 'f', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1627,"end":1632,"loc":{"start":{"line":38,"column":42,"index":1627},"end":{"line":38,"column":47,"index":1632}},"value":false}}]}, validator: '(val) => true' },
+        'focused': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'minimize: the TARGETED machine bare — minimize the focused client, or close_or_remove the empty focused frame (the hc_minimize idiom)', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1824,"end":1829,"loc":{"start":{"line":43,"column":44,"index":1824},"end":{"line":43,"column":49,"index":1829}},"value":false}}]}, validator: '(val) => true' }
+      },
+      path: './src/commands/toggle'
     }
 } as const
 

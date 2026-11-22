@@ -3,4 +3,4 @@
 import { navCommand } from "../lib/nav-command.js";
 import { expandSplit } from "../lib/expand.js";
 
-export default navCommand("expand", 'Expand split to max; at max, remove adjacent empty split', expandSplit);
+export default navCommand("expand", 'expand to max, else remove adjacent split', expandSplit);

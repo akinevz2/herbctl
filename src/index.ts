@@ -2,49 +2,22 @@
 
 import { createCLI } from "@bunli/core";
 
-import focusFrameLeft from "./commands/focus-frame-left.js";
-import focusFrameDown from "./commands/focus-frame-down.js";
-import splitBottomFocus from "./commands/split-bottom-focus.js";
-import splitDown from "./commands/split-down.js";
-import getDeck from "./commands/get-deck.js";
-import getDedeck from "./commands/get-dedeck.js";
-import shiftLeft from "./commands/shift-left.js";
-import explodeFrame from "./commands/explode-frame.js";
-import floatYank from "./commands/float-yank.js";
-import floatFocus from "./commands/float-focus.js";
-import floatUnfocus from "./commands/float-unfocus.js";
-import getForward from "./commands/get-forward.js";
-import closeOrRemove from "./commands/close-or-remove.js";
-import fullscreenToggle from "./commands/fullscreen-toggle.js";
-import minimizeToggle from "./commands/minimize-toggle.js";
-import closeWindow from "./commands/close-window.js";
+import jump from "./commands/jump.js";
+import shift from "./commands/shift.js";
+import frame from "./commands/frame.js";
+import float from "./commands/float.js";
+import split from "./commands/split.js";
+import close from "./commands/close.js";
+import toggle from "./commands/toggle.js";
 import rotateTree from "./commands/rotate-tree.js";
-import shiftUp from "./commands/shift-up.js";
-import shiftDown from "./commands/shift-down.js";
-import getSouth from "./commands/get-south.js";
-import shiftRight from "./commands/shift-right.js";
-import newCmd from "./commands/new.js";
-import splitRightCycle from "./commands/split-right-cycle.js";
-import splitRightFocus from "./commands/split-right-focus.js";
-import xkillOrClose from "./commands/xkill-or-close.js";
 import zoomToggle from "./commands/zoom.js";
 import reload from "./commands/reload.js";
-import center from "./commands/center.js";
-import fit from "./commands/fit.js";
-import corner from "./commands/corner.js";
-import resize from "./commands/resize.js";
 import tile from "./commands/tile.js";
 import spawn from "./commands/spawn.js";
 import move from "./commands/move.js";
-import minimize from "./commands/minimize.js";
-import splitNew from "./commands/split-new.js";
-import splitLaunch from "./commands/split-launch.js";
-import closeTiling from "./commands/close-tiling.js";
 import expand from "./commands/expand.js";
 import openCmd from "./commands/open.js";
 import runCmd from "./commands/run.js";
-import terminalCmd from "./commands/terminal.js";
-import commandCmd from "./commands/command.js";
 
 import { name, version, description } from "../package.json" with { type: "json" };
 
@@ -55,13 +28,12 @@ const cli = await createCLI({
 });
 
 for (const command of [
-  getSouth, getForward, getDeck, getDedeck, explodeFrame, focusFrameLeft,
-  shiftUp, rotateTree, shiftDown, splitDown, shiftLeft, shiftRight,
-  newCmd, closeOrRemove, xkillOrClose, splitRightCycle, focusFrameDown, splitRightFocus, splitBottomFocus,
-  closeWindow, fullscreenToggle, minimizeToggle, zoomToggle, floatYank, floatFocus, floatUnfocus, reload,
-  center, fit, corner, resize, tile, spawn, move, minimize, splitNew, splitLaunch, closeTiling,
+  jump, shift, frame, float, split, close, toggle,
+  rotateTree,
+  reload,
+  tile, spawn, move,
   expand,
-  openCmd, runCmd, terminalCmd, commandCmd,
+  openCmd, runCmd,
 ]) {
   cli.command(command);
 }
@@ -73,10 +45,11 @@ for (const command of [
 // <verb>` and `<verb> help` delegate to the verb's own --help.
 const argv = process.argv.slice(2);
 if (argv.length === 0) {
-  // Bare `herbctl` is the palette shorthand: the command palette IS
-  // the entry verb (Tab completes a single command via `herbctl run`,
-  // Return runs it silently). --help and `help` keep the root help.
-  process.argv = [process.argv[0], process.argv[1], "command"];
+  // Bare `herbctl` is the palette shorthand: the run verb IS the entry
+  // verb (its bare form is the command palette; Tab completes a single
+  // command via the completion palette). --help and `help` keep the
+  // root help.
+  process.argv = [process.argv[0], process.argv[1], "run"];
 } else if (argv[0] === "help") {
   const rest = argv.slice(1);
   // cli.run() re-reads process.argv — rewrite it, not the slice

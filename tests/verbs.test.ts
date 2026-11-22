@@ -9,9 +9,9 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import center from "../src/commands/center";
-import corner from "../src/commands/corner";
-import fit from "../src/commands/fit";
+import center from "../src/lib/center";
+import corner from "../src/lib/corner";
+import fit from "../src/lib/fit";
 import move from "../src/commands/move";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
