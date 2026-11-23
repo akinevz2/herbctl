@@ -14,19 +14,53 @@
 import { hc, attr, helper, listClients } from "./hc.js";
 import { newFrame } from "./chains.js";
 import { launchTerminal } from "./terminal.js";
+import { parseAttr } from "herbstutil/src/commands/parse.js";
 
-/** the hlwm tags on the current monitor (names) — parsed from
- *  `tag_status` (hlwm 0.9.5 has no list_tags): tab-separated entries,
- *  the FIRST character of each is the status flag (. : # !), the rest
- *  is the name. */
+/** pure: the tag index children of a `herbstclient attr tags.` reply
+ *  (herbstutil's parseAttr; the trailing dot stripped — "0" "1" …
+ *  "by-name" "focus"). */
+export function tagIndexesFromDump(dump: string): string[] {
+    const parsed = parseAttr(dump);
+    return (parsed.children ?? []).map((c) => String(c).replace(/\.+$/, ""));
+}
+
+/** pure: the tagspace name out of a `herbstclient attr tags.<idx>.name`
+ *  leaf reply (the raw value; undefined when the leaf errored — the
+ *  empty index slots — or the name is empty). */
+export function tagNameFromReply(reply: string): string | undefined {
+    const name = reply.trim();
+    return name === "" ? undefined : name;
+}
+
+/** pure: the tagspace names for a whole dump, the per-index name
+ *  replies supplied by the caller (the herbstclient round trips stay
+ *  at the call site). The focus/by-name mirror children repeat an
+ *  existing name — deduped to one entry per tagspace. */
+export function tagspaceNames(
+    dump: string,
+    reply: (idx: string) => string,
+): string[] {
+    const names: string[] = [];
+    for (const idx of tagIndexesFromDump(dump)) {
+        const name = tagNameFromReply(reply(idx));
+        if (name !== undefined && !names.includes(name)) names.push(name);
+    }
+    return names;
+}
+
+/** the hlwm tags on the current monitor (names) — `herbstclient attr
+ *  tags.` parsed by herbstutil's parseAttr (the pure functions above),
+ *  each index child's name read the same way (the empty index slots
+ *  error and fail-soft to undefined). */
 export async function listTagspaces(): Promise<string[]> {
-    const r = await hc("tag_status");
-    if (r === null) return [];
-    return r.stdout
-        .split("\t")
-        .map((s) => s.trim())
-        .filter((s) => s.length > 1)
-        .map((s) => s.slice(1));
+    const dump = (await hc("attr", "tags."))?.stdout;
+    if (dump === undefined) return [];
+    const replies = new Map<string, string>();
+    for (const idx of tagIndexesFromDump(dump)) {
+        const r = (await hc("attr", `tags.${idx}.name`))?.stdout;
+        if (r !== undefined) replies.set(idx, r);
+    }
+    return tagspaceNames(dump, (idx) => replies.get(idx) ?? "");
 }
 
 /** the tagspace exists, or it is allocated (the --on precondition). */

@@ -1,0 +1,19 @@
+The tags (or virtual desktops or workspaces). This contains  an entry 'index' for each tag with the given 'index'.
+
+10 children:
+  0.
+  1.
+  2.
+  3.
+  4.
+  5.
+  6.
+  7.
+  by-name.
+  focus.
+1 attribute:
+ .---- type
+ | .-- writable
+ | | .-- hookable
+ V V V
+ u - - count = 8
