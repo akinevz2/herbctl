@@ -48,6 +48,8 @@ export interface TerminalOptions {
     urgent?: boolean;
     /** the terminal does NOT take focus on attach (focus=off rule). */
     noDistract?: boolean;
+    /** attach on this tagspace (an hlwm tag; created when missing). */
+    tag?: string | null;
 }
 
 /** bash printf %q equivalent (single-quote wrapping is argv-safe). */
@@ -138,6 +140,7 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
     if (opts.floating) rule.push("floating=on");
     if (opts.urgent) rule.push("floating=on", "focus=off");
     if (opts.noDistract) rule.push("focus=off");
+    if (opts.tag) rule.push(`tag=${opts.tag}`, "focus=off", "switchtag=off");
 
     const before = opts.urgent ? await clientIds() : new Set<string>();
     await hc("lock");

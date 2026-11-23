@@ -16,6 +16,8 @@ import {
     freeTagspace,
     allocateNotification,
     dismissNotifications,
+    allocateTerminal,
+    ensureTagspace,
 } from "../src/lib/allocate";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
@@ -142,5 +144,36 @@ describe("notification allocation (no keyboard focus: new/add identical)", () =>
         // the no-arg helper call logs an empty argv line — the raw file
         // is the evidence (log() filters blank lines)
         expect(readFileSync(logPath, "utf8").length).toBeGreaterThan(0);
+    });
+});
+
+describe("remote-tagspace allocation (--on, focus-stealing prevented)", () => {
+    test("ensureTagspace creates a missing hlwm tag", async () => {
+        scenario([["list_tags", "0", "1\\n2"]]);
+        expect(await ensureTagspace("notes")).toBe(true);
+        expect(log()).toContainEqual(["add", "notes"]);
+    });
+
+    test("ensureTagspace leaves an existing one alone", async () => {
+        scenario([["list_tags", "0", "1\\nnotes"]]);
+        expect(await ensureTagspace("notes")).toBe(true);
+        expect(log().some((argv) => argv[0] === "add")).toBe(false);
+    });
+
+    test("the --on once-rule pins tag + focus=off + switchtag=off", async () => {
+        process.env.TERMINAL = "alacritty";
+        scenario([
+            ["attr clients.focus.winid", "0", "0x9"],
+            ["list_tags", "0", "1\\n2\\nnotes"],
+        ]);
+        const pid = await allocateTerminal(true, undefined, { on: "notes" });
+        expect(pid).not.toBeNull();
+        const rule = log().find((argv) => argv[0] === "rule");
+        expect(rule).toBeDefined();
+        expect(rule).toContain("tag=notes");
+        expect(rule).toContain("focus=off");
+        expect(rule).toContain("switchtag=off");
+        // the focus-steal guard: the previously focused client is kept
+        expect(log().some((argv) => argv[0] === "jumpto")).toBe(false);
     });
 });

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Mock alacritty: logs like herbstclient, never opens a window.
+LOG="${HERBSTCTL_MOCK_LOG:?HERBSTCTL_MOCK_LOG not set}"
+for a in "$@"; do printf '%s\037' "$a"; done >> "$LOG"
+printf '\n' >> "$LOG"
+exit 0

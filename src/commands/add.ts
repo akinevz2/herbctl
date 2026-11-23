@@ -19,11 +19,26 @@ import {
     allocateNotification,
     allocateTagspace,
     allocateTerminal,
+    ensureTagspace,
 } from "../lib/allocate.js";
 import { hc } from "../lib/hc.js";
 
 const USAGE =
     "Usage: herbctl add [--active] <frame|terminal|notification|tagspace> [name]";
+
+/** --on <tagspace>: allocate on a REMOTE tagspace with focus-stealing
+ *  prevention (the current client stays focused). */
+const onFlag = () =>
+    option(z.string().optional(), {
+        description: "allocate on a remote tagspace (focus-stealing prevented)",
+        short: "o",
+    });
+
+const directoryFlag = () =>
+    option(z.string().optional(), {
+        description: "cd into <dir> first (the terminal's -d)",
+        short: "d",
+    });
 
 export default defineCommand({
     name: "add" as never,
@@ -33,11 +48,14 @@ export default defineCommand({
             description: "alias to `herbctl new <object>` (focus comes to the new object)",
             short: "a",
         }),
+        on: onFlag(),
+        directory: directoryFlag(),
     },
     handler: async ({ flags, positional }) => {
         const object = positional[0];
         const name = positional[1];
         const focus = !!flags.active;
+        const on = flags.on;
         switch (object) {
         case "frame":
             if (focus) {
@@ -48,7 +66,8 @@ export default defineCommand({
             await hc("split", "auto");
             return;
         case "terminal":
-            await allocateTerminal(focus);
+            if (on) await ensureTagspace(on);
+            await allocateTerminal(focus, name, { on, directory: flags.directory });
             return;
         case "notification": {
             // notifications never take keyboard focus: new/add identical

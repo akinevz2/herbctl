@@ -24,6 +24,12 @@ export async function listTagspaces(): Promise<string[]> {
     return r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
 }
 
+/** the tagspace exists, or it is allocated (the --on precondition). */
+export async function ensureTagspace(name: string): Promise<boolean> {
+    if ((await listTagspaces()).includes(name)) return true;
+    return (await hc("add", name)) !== null;
+}
+
 /** the smallest free numeric tagspace name (tags are the default 1..N
  *  naming; the first gap wins, else N+1). */
 export async function freeTagspaceName(): Promise<string> {
@@ -83,15 +89,33 @@ export async function allocateFrame(focus: boolean): Promise<void> {
 
 /** allocate a terminal. focus=true lets it take focus on attach (the
  *  default spawn); focus=false is the --no-distract rule (the migrated
- *  launch_alacritty machinery owns the once-rule). Returns the pid. */
-export function allocateTerminal(
+ *  launch_alacritty machinery owns the once-rule). `on` attaches the
+ *  terminal to a REMOTE tagspace (created when missing) with
+ *  focus-stealing prevention: tag=<on> + focus=off + switchtag=off in
+ *  the once-rule, and the previously focused client is re-focused after
+ *  the attach in case hlwm moved focus anyway. Returns the pid. */
+export async function allocateTerminal(
     focus: boolean,
     command?: string,
+    opts: { on?: string; directory?: string } = {},
 ): Promise<number | null> {
-    return launchTerminal({
+    const prev = (await attr("clients.focus.winid")) ?? "";
+    const pid = await launchTerminal({
         command: command ?? null,
+        directory: opts.directory ?? null,
         noDistract: !focus,
+        tag: opts.on ?? null,
     });
+    if (opts.on) {
+        // focus-stealing prevention, second line of defense: the
+        // once-rule already carries focus=off + switchtag=off — if the
+        // attach moved focus anyway, hand it straight back
+        const now = (await attr("clients.focus.winid")) ?? "";
+        if (prev !== "" && now !== "" && now !== prev) {
+            await hc("jumpto", prev);
+        }
+    }
+    return pid;
 }
 
 /** allocate a notification (raised via dunst). Notifications never take

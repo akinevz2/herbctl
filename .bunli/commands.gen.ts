@@ -49,7 +49,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       name: 'add',
       description: 'Allocate, focus stays: frame, terminal, notification, tagspace',
       options: {
-        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1287,"end":1292,"loc":{"start":{"line":32,"column":43,"index":1287},"end":{"line":32,"column":48,"index":1292}},"value":false}}]}, validator: '(val) => true' }
+        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1756,"end":1761,"loc":{"start":{"line":47,"column":43,"index":1756},"end":{"line":47,"column":48,"index":1761}},"value":false}}]}, validator: '(val) => true' }
       },
       path: './src/commands/add'
     },
