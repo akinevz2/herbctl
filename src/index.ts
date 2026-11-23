@@ -18,6 +18,9 @@ import move from "./commands/move.js";
 import expand from "./commands/expand.js";
 import openCmd from "./commands/open.js";
 import runCmd from "./commands/run.js";
+import newCmd from "./commands/new.js";
+import addCmd from "./commands/add.js";
+import focusCmd from "./commands/focus.js";
 
 import { name, version, description } from "../package.json" with { type: "json" };
 
@@ -34,6 +37,7 @@ for (const command of [
   tile, spawn, move,
   expand,
   openCmd, runCmd,
+  newCmd, addCmd, focusCmd,
 ]) {
   cli.command(command);
 }

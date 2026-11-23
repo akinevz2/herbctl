@@ -1,26 +1,55 @@
-// src/commands/new.ts — the ALLOCATE-AND-SWITCH verb. `new` allocates a
-// new container and moves focus to it; the focus-free counterpart is
-// the future `herbctl add` (allocate in the background, do not move
-// focus).
+// src/commands/new.ts — the ALLOCATE-AND-SWITCH verb. `new <object>`
+// allocates a new object and brings focus to it; the focus-stays
+// counterpart is `herbctl add` (allocate in the background).
 //
-// Subcommand syntax: `herbctl new <noun>` — today only `frame` (the
-// migrated `new-frame`, see src/lib/chains.ts newFrame). `new tag` is
-// reserved: create a tag and switch to it.
+//   herbctl new <frame|terminal|notification|tagspace> [name]
+//
+//   frame         split + cycle into the new frame (the migrated
+//                 new-frame, lib/chains.ts newFrame)
+//   terminal      a terminal spawns and TAKES focus on attach
+//   notification  a dunst notification is allocated and raised (it
+//                 never takes keyboard focus)
+//   tagspace      an hlwm tag is created and entered (the smallest
+//                 free numeric name; a name argument may be given)
 import { defineCommand } from "@bunli/core";
 
 import { newFrame } from "../lib/chains.js";
+import {
+    allocateNotification,
+    allocateTagspace,
+    allocateTerminal,
+} from "../lib/allocate.js";
 
-const frame = defineCommand({
-    name: "frame" as never,
-    description: "Split, cycle frame (the former new-frame)",
-    handler: async () => {
-        const ok = await newFrame();
-        if (ok === false) process.exit(1);
-    },
-});
+const USAGE =
+    "Usage: herbctl new <frame|terminal|notification|tagspace> [name]";
 
 export default defineCommand({
     name: "new" as never,
-    description: "Allocate and switch to: frame, tag",
-    commands: [frame],
+    description: "Allocate and focus: frame, terminal, notification, tagspace",
+    handler: async ({ positional }) => {
+        const object = positional[0];
+        const name = positional[1];
+        switch (object) {
+        case "frame":
+            return newFrame();
+        case "terminal":
+            await allocateTerminal(true);
+            return;
+        case "notification": {
+            const ok = await allocateNotification();
+            if (!ok) process.exit(1);
+            return;
+        }
+        case "tagspace": {
+            const tag = await allocateTagspace(true, name);
+            if (tag === null) process.exit(1);
+            return;
+        }
+        default:
+            console.error(
+                USAGE + (object ? ` — unknown object '${object}'` : ""),
+            );
+            process.exit(2);
+        }
+    },
 });

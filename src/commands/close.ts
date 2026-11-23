@@ -23,6 +23,7 @@ import {
     xkillOrClose,
 } from "../lib/chains.js";
 import { attr, hc } from "../lib/hc.js";
+import { closeFrame, dismissNotifications, freeTagspace } from "../lib/allocate.js";
 
 async function closeTiling(): Promise<void> {
     const ff = (await attr("tags.focus.floating_focused")) ?? "false";
@@ -37,16 +38,32 @@ const MACHINES = {
     window: closeWindow,
     tiling: closeTiling,
     xkill: xkillOrClose,
+    // the object-surface modes (the new/add counterpart — close over
+    // the same frame/tagspace/notification objects)
+    frame: closeFrame,
+    tagspace: () => freeTagspace(positionalTag()),
+    notification: dismissNotifications,
 } as const;
+
+/** the tagspace name may ride as the second positional (close
+ *  tagspace <name> — default: the focused one) */
+function positionalTag(): string | undefined {
+    const a = process.argv.slice(2);
+    const i = a.indexOf("tagspace");
+    const n = a[i + 1];
+    return n && !n.startsWith("-") ? n : undefined;
+}
 
 export default defineCommand({
     name: "close" as never,
-    description: "close <or-remove|window|tiling|xkill>",
+    description:
+        "close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>",
     handler: async ({ positional }) => {
         const run = MACHINES[positional[0] as keyof typeof MACHINES];
         if (!run) {
             throw new Error(
-                `Usage: herbctl close <or-remove|window|tiling|xkill>`
+                `Usage: herbctl close <or-remove|window|tiling|xkill`
+                + `|frame|tagspace [name]|notification>`
                 + (positional[0]
                     ? ` — unknown mode '${positional[0]}'`
                     : ""),

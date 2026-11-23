@@ -4,8 +4,10 @@
 import type { Command, CLI, GeneratedOptionMeta, RegisteredCommands, CommandOptions, GeneratedCommandMeta } from '@bunli/core'
 import { createGeneratedHelpers, registerGeneratedStore } from '@bunli/core'
 
+import Add from '../src/commands/add.js'
 import Close from '../src/commands/close.js'
 import Float from '../src/commands/float.js'
+import Focus from '../src/commands/focus.js'
 import Frame from '../src/commands/frame.js'
 import Jump from '../src/commands/jump.js'
 import Move from '../src/commands/move.js'
@@ -20,12 +22,14 @@ import Tile from '../src/commands/tile.js'
 import Toggle from '../src/commands/toggle.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['close', 'float', 'frame', 'jump', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tile', 'toggle'] as const
+const names = ['add', 'close', 'float', 'focus', 'frame', 'jump', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tile', 'toggle'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
+  'add': Add,
   'close': Close,
   'float': Float,
+  'focus': Focus,
   'frame': Frame,
   'jump': Jump,
   'move': Move,
@@ -41,9 +45,17 @@ const modules: Record<GeneratedNames, Command<any>> = {
 } as const
 
 const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
+  'add': {
+      name: 'add',
+      description: 'Allocate, focus stays: frame, terminal, notification, tagspace',
+      options: {
+        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1287,"end":1292,"loc":{"start":{"line":32,"column":43,"index":1287},"end":{"line":32,"column":48,"index":1292}},"value":false}}]}, validator: '(val) => true' }
+      },
+      path: './src/commands/add'
+    },
   'close': {
       name: 'close',
-      description: 'close <or-remove|window|tiling|xkill>',
+      description: 'close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>',
       path: './src/commands/close'
     },
   'float': {
@@ -57,6 +69,11 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
         'mode': { type: 'z.string.optional', required: false, hasDefault: false, description: 'resize: \'frame\' to fill the parent frame, or an explicit WxH+X+Y rect', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
       path: './src/commands/float'
+    },
+  'focus': {
+      name: 'focus',
+      description: 'focus <frame|tagspace [name]|terminal>',
+      path: './src/commands/focus'
     },
   'frame': {
       name: 'frame',
@@ -85,7 +102,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'new': {
       name: 'new',
-      description: 'Allocate and switch to: frame, tag',
+      description: 'Allocate and focus: frame, terminal, notification, tagspace',
       path: './src/commands/new'
     },
   'open': {
