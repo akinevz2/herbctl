@@ -15,13 +15,18 @@ import { hc, attr, helper, listClients } from "./hc.js";
 import { newFrame } from "./chains.js";
 import { launchTerminal } from "./terminal.js";
 
-/** the hlwm tags on the current monitor (names). */
+/** the hlwm tags on the current monitor (names) — parsed from
+ *  `tag_status` (hlwm 0.9.5 has no list_tags): tab-separated entries,
+ *  the FIRST character of each is the status flag (. : # !), the rest
+ *  is the name. */
 export async function listTagspaces(): Promise<string[]> {
-    const r = await hc("list_tags");
+    const r = await hc("tag_status");
     if (r === null) return [];
-    // list_tags prints one name per line (each possibly a quoted path —
-    // bare names for the default naming)
-    return r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    return r.stdout
+        .split("\t")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 1)
+        .map((s) => s.slice(1));
 }
 
 /** the tagspace exists, or it is allocated (the --on precondition). */
