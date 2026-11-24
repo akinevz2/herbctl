@@ -54,6 +54,7 @@ import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
 import { rofiMenu, runInTerminal, spawnEnv } from "../lib/rofi.js";
+import { launchTerminal } from "../lib/terminal.js";
 import { spawnDetached } from "../lib/rule-spawn.js";
 import { getCandidates, getTree, getVerb } from "../lib/completions.js";
 
@@ -178,6 +179,16 @@ export function tabShouldSubmit(
     return tabTailComplete(selection, next);
 }
 
+/** PURE: the Tab decision on a level with NO completions — a REQUIRED
+ *  tail means the verb needs an argument (open the help); no tail
+ *  declared means the verb takes nothing (execute). String-level,
+ *  tested. */
+export function tabOnEmptyDecision(
+    tail?: { required?: boolean },
+): "help" | "execute" {
+    return tail?.required ? "help" : "execute";
+}
+
 /** The Tab tail short-circuit: when the token just Tab-completed
  *  ALREADY appears among the NEXT level's completions, the command is
  *  tail-complete — descending would re-offer the same verb (the
@@ -256,10 +267,18 @@ async function commandPalette(): Promise<void> {
     if (selection === "") return; // Escape: nothing runs
     switch (rc) {
         case 12:
-        case 13: // Tab / Ctrl-Return: hand the single command to the
-            // completion palette — run IS the single-level completion
-            // implementation (Tab descends, Shift-Return pagers).
-            await runPalette([selection]);
+        case 13: // Tab / Ctrl-Return: herbctl drops into the completion
+            // palette (its verbs/directions are completable); any OTHER
+            // entry opens its --help in a FOCUSED floating window — the
+            // user reads the parameters and dismisses (the previous
+            // behavior descended into an empty completion menu: lost).
+            if (selection === "herbctl") {
+                await runPalette([selection]);
+                return;
+            }
+            await runInTerminal(`${selection} --help 2>&1 | ${
+                process.env.PAGER || "less -R"
+            }`);
             return;
         case 10: // Shift-Return: run in the floated terminal
             await runInTerminal(selection);
@@ -374,12 +393,17 @@ export async function runPalette(initial: string[]): Promise<void> {
             const line = [cmd, ...args, selection].join(" ");
             if (rc === 10) {
                 // Shift-Return: the full help of the highlighted entry
-                // in a floated pager terminal — NON-consuming: the
-                // menu re-opens until the rofi session is done; the
-                // terminal is tracked and closed on session end.
-                const pid = await runInTerminal(`${line} --help 2>&1 | ${
-                    process.env.PAGER || "less -R"
-                }`);
+                // in a pager terminal — NON-consuming (the menu
+                // re-opens until the rofi session ends; the terminal
+                // is tracked and closed on session end) and
+                // NON-FOCUS-STEALING (the no-distract rule: the user
+                // keeps working; the help is there when looked at).
+                const pid = await launchTerminal({
+                    command: `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`,
+                    floating: true,
+                    noDistract: true,
+                    fullHeight: true,
+                });
                 if (pid !== null) pagerPids.push(pid);
                 continue;
             }
@@ -405,6 +429,28 @@ export async function runPalette(initial: string[]): Promise<void> {
                     if (cmd !== "herbctl" || next.length > 0) {
                         submitLine([cmd, ...next].join(" "), summaryFor(next));
                     }
+                    break;
+                }
+                if (completions.length === 0) {
+                    // The level offers NOTHING — no subverbs, no flags
+                    // known to the registry. The registry's TAIL FACT
+                    // decides: a required tail means the verb needs an
+                    // argument the menu cannot offer — Tab opens the
+                    // verb's --help in a FOCUSED floating window so the
+                    // user can read which parameters it accepts. No
+                    // tail declared: the verb takes nothing — Tab
+                    // executes the line as if Return was pressed.
+                    const verb = getVerb(args[0] ?? "");
+                    const line = [cmd, ...args].join(" ");
+                    if (tabOnEmptyDecision(verb?.tail) === "help") {
+                        const pid = await runInTerminal(
+                            `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`,
+                        );
+                        if (pid !== null) pagerPids.push(pid);
+                        continue; // the menu re-opens for the re-input
+                    }
+                    submitLine([cmd, ...args, selection].filter(Boolean).join(" "),
+                        summaryFor(args));
                     break;
                 }
                 args = next;

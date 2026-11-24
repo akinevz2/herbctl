@@ -17,11 +17,25 @@
 // completions — the PLACEHOLDERS stoplist filters them.
 import { version } from "../../package.json" with { type: "json" };
 
+export interface TailSpec {
+    /** the tail parameter's name ("name" for the tagspace verbs) */
+    name: string;
+    /** required: omitted, the verb PROMPTS (rofi input, then the urgent
+     *  terminal) and fails with the argument-required shape when the
+     *  prompt is refused */
+    required?: boolean;
+    description: string;
+}
+
 export interface VerbCompletions {
     name: string;
     description: string;
     tokens: string[];
     flags: string[];
+    /** the tail parameter fact, when the verb takes one (the declarative
+     *  ARGS layer feeds this — the Tab rule asks the registry instead of
+     *  scraping --help text) */
+    tail?: TailSpec;
 }
 
 export interface CompletionsTree {
@@ -71,6 +85,7 @@ export function registerCompletions(
         description: string;
         options?: Record<string, unknown>;
     }>,
+    tails: Record<string, TailSpec> = {},
 ): void {
     for (const command of commands) {
         if (STOP.has(command.name.toLowerCase())) continue;
@@ -84,6 +99,7 @@ export function registerCompletions(
             tokens: enumTokens(command.description)
                 .filter((t) => t !== command.name),
             flags,
+            tail: tails[command.name],
         });
     }
 }

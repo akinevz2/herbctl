@@ -5,12 +5,9 @@
 
 import { describe, expect, test } from "bun:test";
 
-import {
-    argFailReason,
-    resolveTails,
-    promptBackends,
-    type ArgSpec,
-} from "../src/lib/args";
+import { argFailReason, resolveTails, promptBackends, type ArgSpec } from "../src/lib/args";
+import { tabOnEmptyDecision } from "../src/commands/run";
+import { registerCompletions, getVerb } from "../src/lib/completions";
 
 const SPECS: readonly ArgSpec[] = [
     { name: "object", description: "what to allocate", required: true },
@@ -79,5 +76,18 @@ describe("promptBackends (the resilient query chain)", () => {
     test("noPrompt (automation): no backends — the caller emits the fail shape", () => {
         expect(promptBackends({ display: ":0", rofiOnPath: true, wmSpawnPossible: true, noPrompt: true }))
             .toEqual([]);
+    });
+});
+
+describe("the registry tail fact (the functional interface)", () => {
+    test("a required tail → Tab opens the help; no tail → Tab executes", () => {
+        registerCompletions([
+            { name: "tagspace", description: "tagspace [name] — enter, allocating when missing" },
+            { name: "reload", description: "reload the WM + theme" },
+        ], {
+            tagspace: { name: "name", required: true, description: "the tagspace name" },
+        });
+        expect(tabOnEmptyDecision(getVerb("tagspace")?.tail)).toBe("help");
+        expect(tabOnEmptyDecision(getVerb("reload")?.tail)).toBe("execute");
     });
 });

@@ -42,7 +42,13 @@ const COMMANDS = [
 // The completion registry (lib/completions) fills ONCE at boot — the
 // run palette and `completions --internal` both read it, no help-text
 // scraping anywhere.
-registerCompletions(COMMANDS);
+registerCompletions(COMMANDS, {
+    // the tail-parameter facts (the declarative layer's per-verb data):
+    // the Tab rule asks the registry — a REQUIRED tail means Tab opens
+    // the help; a verb with no tail and no subverbs executes on Tab.
+    tagspace: { name: "name", required: true, description: "the tagspace name" },
+    close: { name: "name", required: false, description: "the tagspace to free (default: the focused one)" },
+});
 
 const cli = await createCLI({
   name,
