@@ -2,57 +2,67 @@
 // allocates a new object and brings focus to it; the focus-stays
 // counterpart is `herbctl add` (allocate in the background).
 //
-//   herbctl new <frame|terminal|notification|tagspace> [name]
+// ARGUMENTS — declarative, the single source of truth (see ARGS below):
+//   object   tail  required  what to allocate (a choice list)
+//   name     tail  per-object (the tagspace name / the terminal command)
 //
 //   frame         split + cycle into the new frame (the migrated
 //                 new-frame, lib/chains.ts newFrame)
 //   terminal      a terminal spawns and TAKES focus on attach
 //   notification  a dunst notification is allocated and raised (it
 //                 never takes keyboard focus)
-//   tagspace      an hlwm tag is created and entered (the smallest
-//                 free numeric name; a name argument may be given)
-import { defineCommand, option } from "@bunli/core";
-import { z } from "zod";
+//   tagspace      an hlwm tag is created and entered — the name is
+//                 REQUIRED: omitted, it is prompted for (themed rofi
+//                 input, then the urgent terminal); the prompt refused,
+//                 the command fails with
+//                 `argument name is required for new tagspace` (exit 2)
+import { defineCommand } from "@bunli/core";
 
 import { newFrame } from "../lib/chains.js";
 import {
     allocateNotification,
     allocateTagspace,
     allocateTerminal,
-    ensureTagspace,
 } from "../lib/allocate.js";
+import { type ArgSpec, resolveVerbArgs } from "../lib/args.js";
 
-const USAGE =
-    "Usage: herbctl new <frame|terminal|notification|tagspace> [name]";
+const VERB = "new";
 
-/** --on <tagspace>: allocate on a REMOTE tagspace with focus-stealing
- *  prevention (the current client stays focused). */
-const onFlag = () =>
-    option(z.string().optional(), {
-        description: "allocate on a remote tagspace (focus-stealing prevented)",
-        short: "o",
-    });
+/** the object surface — the object argument is a choice list, the name
+ *  is only meaningful for some objects (per-object specs below). */
+const OBJECTS = ["frame", "terminal", "notification", "tagspace"] as const;
 
-const directoryFlag = () =>
-    option(z.string().optional(), {
-        description: "cd into <dir> first (the terminal's -d)",
-        short: "d",
-    });
+const OBJECT_SPECS: Record<string, readonly ArgSpec[]> = {
+    frame: [],
+    terminal: [
+        { name: "command", description: "the command to run (default: a login shell)" },
+    ],
+    notification: [],
+    tagspace: [
+        { name: "name", description: "the tagspace name", required: true, promptTitle: "new tagspace name" },
+    ],
+};
 
 export default defineCommand({
     name: "new" as never,
-    description: "new <frame|terminal|notification|tagspace> — focus follows",
-    options: { on: onFlag(), directory: directoryFlag() },
-    handler: async ({ flags, positional }) => {
-        const object = positional[0];
-        const name = positional[1];
-        const on = flags.on;
+    description: "Allocate and focus: frame, terminal, notification, tagspace",
+    handler: async ({ positional }) => {
+        const [object, ...rest] = positional;
+        const specs = OBJECT_SPECS[object ?? ""];
+        if (!specs) {
+            console.error(
+                `Usage: herbctl new <${OBJECTS.join("|")}> [name]`
+                + (object ? ` — unknown object '${object}'` : ""),
+            );
+            process.exit(2);
+        }
+        const args = await resolveVerbArgs(VERB, object, specs, rest);
+        if (args === null) process.exit(2);
         switch (object) {
         case "frame":
             return newFrame();
         case "terminal":
-            if (on) await ensureTagspace(on);
-            await allocateTerminal(true, name, { on, directory: flags.directory });
+            await allocateTerminal(true, args.command);
             return;
         case "notification": {
             const ok = await allocateNotification();
@@ -60,15 +70,11 @@ export default defineCommand({
             return;
         }
         case "tagspace": {
-            const tag = await allocateTagspace(true, name);
+            const tag = await allocateTagspace(true, args.name);
             if (tag === null) process.exit(1);
             return;
         }
-        default:
-            console.error(
-                USAGE + (object ? ` — unknown object '${object}'` : ""),
-            );
-            process.exit(2);
         }
     },
 });
+

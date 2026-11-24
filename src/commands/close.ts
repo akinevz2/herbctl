@@ -23,6 +23,7 @@ import {
     xkillOrClose,
 } from "../lib/chains.js";
 import { attr, hc } from "../lib/hc.js";
+import { argFailReason, promptValue } from "../lib/args.js";
 import { closeFrame, dismissNotifications, freeTagspace } from "../lib/allocate.js";
 
 async function closeTiling(): Promise<void> {
@@ -41,7 +42,18 @@ const MACHINES = {
     // the object-surface modes (the new/add counterpart — close over
     // the same frame/tagspace/notification objects)
     frame: closeFrame,
-    tagspace: () => freeTagspace(positionalTag()),
+    tagspace: async () => {
+        const name = positionalTag() ??
+            await promptValue(
+                { name: "name", description: "the tagspace to free", promptTitle: "tagspace to free" },
+                "close tagspace",
+            )
+        if (name === null) {
+            console.error(argFailReason("name", "close tagspace"));
+            process.exit(2);
+        }
+        await freeTagspace(name);
+    },
     notification: dismissNotifications,
 } as const;
 

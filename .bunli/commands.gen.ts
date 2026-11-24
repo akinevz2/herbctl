@@ -51,9 +51,11 @@ const modules: Record<GeneratedNames, Command<any>> = {
 const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
   'add': {
       name: 'add',
-      description: 'add <frame|terminal|notification|tagspace> — focus stays',
+      description: 'Allocate, focus stays: frame, terminal, notification, tagspace',
       options: {
-        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1750,"end":1755,"loc":{"start":{"line":47,"column":43,"index":1750},"end":{"line":47,"column":48,"index":1755}},"value":false}}]}, validator: '(val) => true' }
+        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2030,"end":2035,"loc":{"start":{"line":51,"column":43,"index":2030},"end":{"line":51,"column":48,"index":2035}},"value":false}}]}, validator: '(val) => true' },
+        'on': { type: 'z.string.optional', required: false, hasDefault: false, description: 'allocate on a remote tagspace (focus-stealing prevented)', short: 'o', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
+        'directory': { type: 'z.string.optional', required: false, hasDefault: false, description: 'cd into <dir> first (the terminal\'s -d)', short: 'd', fileType: 'directory', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
       path: './src/commands/add'
     },
@@ -119,7 +121,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'new': {
       name: 'new',
-      description: 'new <frame|terminal|notification|tagspace> — focus follows',
+      description: 'Allocate and focus: frame, terminal, notification, tagspace',
       path: './src/commands/new'
     },
   'open': {

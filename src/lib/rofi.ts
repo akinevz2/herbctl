@@ -39,6 +39,14 @@ export function rofiThemePath(): string | null {
     }
 }
 
+/** The text-input capture theme (input.rasi — centered, inputbar only),
+ *  when installed. Falls back to the palette theme. */
+export function rofiInputThemePath(): string | null {
+    const input = `${process.env.HOME}/.config/rofi/input.rasi`;
+    if (existsSync(input)) return input;
+    return rofiThemePath();
+}
+
 export interface RofiMenuOptions {
     prompt: string;
     entries: string[];
@@ -46,6 +54,8 @@ export interface RofiMenuOptions {
     filter?: string;
     /** Pre-selected row index (the scroll-preview re-open). */
     selectedRow?: number;
+    /** Theme override (input.rasi for the single-argument query). */
+    theme?: string;
     /** Scroll handling: "exit" binds the wheel to the custom exits
      *  (kb-custom-1/2 = ScrollUp/ScrollDown, rc 10/11) and clears the
      *  default ml-* scroll navigation — the wheel leaves the menu with
@@ -69,9 +79,9 @@ export interface RofiResult {
  * spawn failure resolves { rc: 1, selection: "" } — the cancel shape.
  */
 export async function rofiMenu(
-    { prompt, entries, filter, selectedRow, scroll }: RofiMenuOptions,
+    { prompt, entries, filter, selectedRow, scroll, theme: themeOverride }: RofiMenuOptions,
 ): Promise<RofiResult> {
-    const theme = rofiThemePath();
+    const theme = themeOverride ?? rofiThemePath();
     const argv = [
         "rofi", "-dmenu", "-i", "-p", prompt,
         ...(theme ? ["-theme", theme] : []),
