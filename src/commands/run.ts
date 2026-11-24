@@ -400,6 +400,14 @@ export async function runPalette(initial: string[]): Promise<void> {
                     if (args.length > 0) return v.flags;
                     return [...v.tokens, ...v.flags];
                 })();
+            // the verb declares a tail parameter → the BLANK first
+            // entry is offered: Tab/Enter on it accepts the line
+            // AS-IS (the verb's blank semantics resolve it — e.g.
+            // `close tagspace` frees the focused tagspace)
+            const verbSurface = getVerb(isRoot ? args[0] ?? "" : head);
+            const blankEntry = verbSurface?.tail !== undefined
+                ? "(leave empty)"
+                : undefined;
             // An EMPTY level never opens a menu: submitting the line
             // lets the verb's own declarative layer prompt for the
             // missing required tail (the resilient userQuery) or run
@@ -412,9 +420,11 @@ export async function runPalette(initial: string[]): Promise<void> {
             const { rc, selection } = await rofiMenu({
                 prompt: linePrefix().join(" "),
                 entries: completions,
+                blankEntry,
             });
             if (selection === "" && !isRoot) break; // Escape on a verb level
             if (selection === "" && rc !== 0 && rc !== 12 && rc !== 13) break;
+            const blankPicked = blankEntry !== undefined && selection === blankEntry;
             const line = linePrefix().join(" ");
             if (rc === 10) {
                 // Shift-Return: the full help of the highlighted entry
@@ -434,7 +444,7 @@ export async function runPalette(initial: string[]): Promise<void> {
                 // temporary terminal (the output is the point);
                 // deliberately UNTRACKED — it outlives the session.
                 await runInTerminal(
-                    [line, selection].filter(Boolean).join(" "),
+                    [line, blankPicked ? "" : selection].filter(Boolean).join(" "),
                 );
                 break;
             }
@@ -443,6 +453,10 @@ export async function runPalette(initial: string[]): Promise<void> {
                 // EMPTY (handled above at the next iteration's gate) or
                 // the command is already complete (the tabShouldSubmit
                 // rules): then the line RUNS.
+                if (blankPicked) {
+                    submitLine(linePrefix().join(" "), summaryFor(args));
+                    break;
+                }
                 const next = [...args, selection].filter(Boolean);
                 const nextCompletions = isRoot
                     ? getCandidates(next, "")
@@ -462,7 +476,7 @@ export async function runPalette(initial: string[]): Promise<void> {
             }
             // Return (rc 0): submit the line with the typed/selected
             // token — or the assembled line when the menu was empty.
-            const final = selection === ""
+            const final = selection === "" || blankPicked
                 ? linePrefix()
                 : [...linePrefix(), selection];
             submitLine(final.join(" "), summaryFor(args));

@@ -79,7 +79,7 @@ function positionalTag(): string | undefined {
 export default defineCommand({
     name: "close" as never,
     description:
-        "close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>",
+        "close <or-remove|window|tiling|xkill|frame|tagspace|notification>",
     options: {
         empty: option(z.boolean().optional(), {
             argumentKind: "flag" as const,

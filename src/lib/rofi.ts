@@ -56,6 +56,10 @@ export interface RofiMenuOptions {
     selectedRow?: number;
     /** Theme override (input.rasi for the single-argument query). */
     theme?: string;
+    /** A BLANK first entry (the intuitive "accept as-is" row): the
+     *  label is prepended to the list; the caller compares the
+     *  selection against it and submits the line WITHOUT the token. */
+    blankEntry?: string;
     /** Scroll handling: "exit" binds the wheel to the custom exits
      *  (kb-custom-1/2 = ScrollUp/ScrollDown, rc 10/11) and clears the
      *  default ml-* scroll navigation — the wheel leaves the menu with
@@ -79,9 +83,10 @@ export interface RofiResult {
  * spawn failure resolves { rc: 1, selection: "" } — the cancel shape.
  */
 export async function rofiMenu(
-    { prompt, entries, filter, selectedRow, scroll, theme: themeOverride }: RofiMenuOptions,
+    { prompt, entries, filter, selectedRow, scroll, theme: themeOverride, blankEntry }: RofiMenuOptions,
 ): Promise<RofiResult> {
     const theme = themeOverride ?? rofiThemePath();
+    const rows = blankEntry ? [blankEntry, ...entries] : [...entries];
     const argv = [
         "rofi", "-dmenu", "-i", "-p", prompt,
         ...(theme ? ["-theme", theme] : []),
@@ -125,7 +130,7 @@ export async function rofiMenu(
             stderr: "inherit",
             env: spawnEnv(),
         });
-        proc.stdin.write(`${entries.join("\n")}\n`);
+        proc.stdin.write(`${rows.join("\n")}\n`);
         proc.stdin.end();
         const stdout = await new Response(proc.stdout).text();
         const rc = await proc.exited;

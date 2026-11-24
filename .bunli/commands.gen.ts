@@ -51,9 +51,9 @@ const modules: Record<GeneratedNames, Command<any>> = {
 const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
   'add': {
       name: 'add',
-      description: 'Allocate, focus stays: frame, terminal, notification, tagspace',
+      description: 'add <frame|terminal|notification|tagspace> — allocate, focus stays',
       options: {
-        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2030,"end":2035,"loc":{"start":{"line":51,"column":43,"index":2030},"end":{"line":51,"column":48,"index":2035}},"value":false}}]}, validator: '(val) => true' },
+        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2034,"end":2039,"loc":{"start":{"line":51,"column":43,"index":2034},"end":{"line":51,"column":48,"index":2039}},"value":false}}]}, validator: '(val) => true' },
         'on': { type: 'z.string.optional', required: false, hasDefault: false, description: 'allocate on a remote tagspace (focus-stealing prevented)', short: 'o', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'directory': { type: 'z.string.optional', required: false, hasDefault: false, description: 'cd into <dir> first (the terminal\'s -d)', short: 'd', fileType: 'directory', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
@@ -61,7 +61,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'close': {
       name: 'close',
-      description: 'close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>',
+      description: 'close <or-remove|window|tiling|xkill|frame|tagspace|notification>',
       options: {
         'empty': { type: 'z.boolean.optional', required: false, hasDefault: false, description: 'with tagspace: free EVERY empty tagspace at once', short: 'e', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
@@ -124,7 +124,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'new': {
       name: 'new',
-      description: 'Allocate and focus: frame, terminal, notification, tagspace',
+      description: 'new <frame|terminal|notification|tagspace> — allocate and focus to the new object',
       path: './src/commands/new'
     },
   'open': {

@@ -45,7 +45,7 @@ const OBJECT_SPECS: Record<string, readonly ArgSpec[]> = {
 
 export default defineCommand({
     name: "new" as never,
-    description: "Allocate and focus: frame, terminal, notification, tagspace",
+    description: "new <frame|terminal|notification|tagspace> — allocate and focus to the new object",
     handler: async ({ positional }) => {
         const [object, ...rest] = positional;
         const specs = OBJECT_SPECS[object ?? ""];
