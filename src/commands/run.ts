@@ -55,6 +55,7 @@ import { z } from "zod";
 
 import { rofiMenu, runInTerminal, spawnEnv } from "../lib/rofi.js";
 import { launchTerminal } from "../lib/terminal.js";
+import { type VerbCompletions } from "../lib/completions.js";
 import { spawnDetached } from "../lib/rule-spawn.js";
 import { getCandidates, getTree, getVerb } from "../lib/completions.js";
 
@@ -297,11 +298,30 @@ async function commandPalette(): Promise<void> {
                 await runPalette([selection]);
                 return;
             }
+            // a selection that is not on PATH cannot run — the dunst
+            // callout says so (a detached `sh -c` failure is silent
+            // and the user would never know)
+            if (Bun.which(selection) === null) {
+                Bun.spawnSync(
+                    ["dunstify", "-a", "opencode-orchestrator", "orchestrator",
+                     `command not found: ${selection}`],
+                    { stdout: "ignore", stderr: "ignore" },
+                );
+                return;
+            }
             spawnDetached("sh", ["-c", selection]);
             return;
         }
         default: // other customs: run silently, detached
-            spawnDetached("sh", ["-c", selection]);
+            if (Bun.which(selection) !== null) {
+                spawnDetached("sh", ["-c", selection]);
+            } else {
+                Bun.spawnSync(
+                    ["dunstify", "-a", "opencode-orchestrator", "orchestrator",
+                     `command not found: ${selection}`],
+                    { stdout: "ignore", stderr: "ignore" },
+                );
+            }
             return;
     }
 }
@@ -345,59 +365,61 @@ export default defineCommand({
 const MAX_DESCEND = 8;
 
 export async function runPalette(initial: string[]): Promise<void> {
-    const [cmd, ...initialArgs] = initial;
-    if (!cmd) return; // nothing to complete
-    let args = initialArgs;
+    const [head, ...rest] = initial;
+    if (!head) return; // nothing to complete
+    // EVERY entry in this palette is the herbctl surface: the root
+    // (head === "herbctl") completes the verb list; a verb head
+    // completes that verb's tokens + flags.
+    const isRoot = head === "herbctl";
+    let args = isRoot ? rest : rest;
+    const linePrefix = (): string[] =>
+        isRoot ? ["herbctl", ...args] : ["herbctl", head, ...args];
+    const verbFor = (): VerbCompletions | null =>
+        isRoot ? getVerb(args[0] ?? "") : getVerb(head);
     // The Shift-Return pager help-terminals, tracked by pid: when the
-    // rofi session ends (submit, cancel, Escape) they are closed and
-    // the help notification dismissed — nothing outlives the palette.
+    // rofi session ends they are closed and the help notification
+    // dismissed — nothing outlives the palette.
     const pagerPids: number[] = [];
+    const summaryFor = (a: string[]): string => {
+        const v = isRoot ? getVerb(a[0] ?? "") : getVerb(head);
+        if (v === null) return "";
+        const modes = v.tokens.length > 0 ? `\nmodes: ${v.tokens.join(" ")}` : "";
+        const flags = v.flags.length > 0 ? `\nflags: ${v.flags.join(" ")}` : "";
+        return `${v.description}${modes}${flags}`;
+    };
     try {
-        // EVERY level — top level included — shows the level's
-        // completion surface as a dunst notification (replace-id'd:
-        // one notification at a time, always describing what the open
-        // menu is over). The surface comes from the in-process
-        // completion registry (lib/completions) — no subprocess, no
-        // help-text scraping.
-        const isHerbctl = cmd === "herbctl";
-        // The level summary: the terse description + the mode tokens
-        // and flags, one section per line (the notification body).
-        const summaryFor = (a: string[]): string => {
-            if (!isHerbctl) return ""; // non-herbctl: the empty menu
-            if (a.length === 0) {
-                return "herbctl <verb>\nverbs: "
-                    + [...getTree().commands.map((c) => c.name)].join(" ");
-            }
-            const verb = getVerb(a[0]);
-            if (verb === null) return ""; // not a verb: empty menu
-            const modes = verb.tokens.length > 0
-                ? `\nmodes: ${verb.tokens.join(" ")}`
-                : "";
-            const flags = verb.flags.length > 0
-                ? `\nflags: ${verb.flags.join(" ")}`
-                : "";
-            return `${verb.description}${modes}${flags}`;
-        };
         while (args.length <= MAX_DESCEND) {
-            // The completion menu is for HERBCTL only: for any other
-            // command there is no registry — those sessions open an
-            // EMPTY menu — typing still completes the line, Return
-            // submits it.
-            notifyLevel([cmd, ...args].join(" "), summaryFor(args));
-            const completions = isHerbctl ? getCandidates(args, "") : [];
+            // EVERY level shows the level's completion surface as a
+            // dunst notification (replace-id'd) — from the in-process
+            // registry (lib/completions), no subprocess, no scraping.
+            const completions = isRoot
+                ? getCandidates(args, "")
+                : (() => {
+                    const v = getVerb(head);
+                    if (v === null) return [];
+                    if (args.length > 0) return v.flags;
+                    return [...v.tokens, ...v.flags];
+                })();
+            // An EMPTY level never opens a menu: submitting the line
+            // lets the verb's own declarative layer prompt for the
+            // missing required tail (the resilient userQuery) or run
+            // the parameterless verb — the lost state is impossible.
+            if (!isRoot && completions.length === 0 && args.length > 0) {
+                submitLine(linePrefix().join(" "), summaryFor(args));
+                break;
+            }
+            notifyLevel(linePrefix().join(" "), summaryFor(args));
             const { rc, selection } = await rofiMenu({
-                prompt: [cmd, ...args].join(" "),
+                prompt: linePrefix().join(" "),
                 entries: completions,
             });
-            if (selection === "") break; // Escape: session over
-            const line = [cmd, ...args, selection].join(" ");
+            if (selection === "" && !isRoot) break; // Escape on a verb level
+            if (selection === "" && rc !== 0 && rc !== 12 && rc !== 13) break;
+            const line = linePrefix().join(" ");
             if (rc === 10) {
                 // Shift-Return: the full help of the highlighted entry
-                // in a pager terminal — NON-consuming (the menu
-                // re-opens until the rofi session ends; the terminal
-                // is tracked and closed on session end) and
-                // NON-FOCUS-STEALING (the no-distract rule: the user
-                // keeps working; the help is there when looked at).
+                // in a pager terminal — NON-consuming and
+                // NON-FOCUS-STEALING (the no-distract rule).
                 const pid = await launchTerminal({
                     command: `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`,
                     floating: true,
@@ -409,74 +431,44 @@ export async function runPalette(initial: string[]): Promise<void> {
             }
             if (rc === 11) {
                 // Ctrl-Shift-Return: accept with output — the floated
-                // temporary terminal (the output is the point here);
+                // temporary terminal (the output is the point);
                 // deliberately UNTRACKED — it outlives the session.
-                await runInTerminal(line);
+                await runInTerminal(
+                    [line, selection].filter(Boolean).join(" "),
+                );
                 break;
             }
-            if (rc === 12) {
-                // Tab: descend — UNLESS the command is already
-                // complete, in which case Tab RESOLVES TO RUNNING the
-                // line (the Return semantics): a mode token at the
-                // verb level (the deeper level only offers flags), or
-                // a tail the next level re-offers (the flag case).
-                // Never a loop, never a doubled verb.
-                const next = [...args, selection];
-                const nextCompletions = isHerbctl
+            if (rc === 12 || rc === 13) {
+                // Tab / Ctrl-Return: descend — UNLESS the level is
+                // EMPTY (handled above at the next iteration's gate) or
+                // the command is already complete (the tabShouldSubmit
+                // rules): then the line RUNS.
+                const next = [...args, selection].filter(Boolean);
+                const nextCompletions = isRoot
                     ? getCandidates(next, "")
-                    : [];
+                    : (() => {
+                        const v = next.length > 0 ? getVerb(next[0]) : null;
+                        if (v === null) return [];
+                        if (next.length > 1) return v.flags;
+                        return [...v.tokens, ...v.flags];
+                    })();
                 if (tabShouldSubmit(selection, args.length, completions, nextCompletions)) {
-                    if (cmd !== "herbctl" || next.length > 0) {
-                        submitLine([cmd, ...next].join(" "), summaryFor(next));
-                    }
-                    break;
-                }
-                if (completions.length === 0) {
-                    // The level offers NOTHING — no subverbs, no flags
-                    // known to the registry. The registry's TAIL FACT
-                    // decides: a required tail means the verb needs an
-                    // argument the menu cannot offer — Tab opens the
-                    // verb's --help in a FOCUSED floating window so the
-                    // user can read which parameters it accepts. No
-                    // tail declared: the verb takes nothing — Tab
-                    // executes the line as if Return was pressed.
-                    const verb = getVerb(args[0] ?? "");
-                    const line = [cmd, ...args].join(" ");
-                    if (tabOnEmptyDecision(verb?.tail) === "help") {
-                        const pid = await runInTerminal(
-                            `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`,
-                        );
-                        if (pid !== null) pagerPids.push(pid);
-                        continue; // the menu re-opens for the re-input
-                    }
-                    submitLine([cmd, ...args, selection].filter(Boolean).join(" "),
-                        summaryFor(args));
+                    submitLine(linePrefix().join(" ") + (selection ? ` ${selection}` : ""),
+                        summaryFor(next));
                     break;
                 }
                 args = next;
                 continue;
             }
-            if (rc === 0 || rc === 13) {
-                // Return and Ctrl-Return BOTH submit: the line with the
-                // typed/selected token, or the assembled line when the
-                // menu was empty (an empty selection must not swallow
-                // the launch). No probing — drilling is Tab's job.
-                const final = selection === ""
-                    ? [cmd, ...args]
-                    : [cmd, ...args, selection];
-                if (final.length > 1 || cmd !== "herbctl") {
-                    submitLine(final.join(" "), summaryFor(args));
-                }
-                break;
-            }
-            // Other custom exits (rc 12+ unhandled): descend the same
-            // way — the selection joins the args and the help re-runs.
-            args = [...args, selection];
+            // Return (rc 0): submit the line with the typed/selected
+            // token — or the assembled line when the menu was empty.
+            const final = selection === ""
+                ? linePrefix()
+                : [...linePrefix(), selection];
+            submitLine(final.join(" "), summaryFor(args));
+            break;
         }
     } finally {
-        // Session over: the pager terminals close (SIGTERM to the
-        // alacritty process closes the window), and the help
-        // notification is dismissed — dunstify's waiter exits with it.
         for (const pid of pagerPids) {
             try {
                 process.kill(pid, "SIGTERM");
