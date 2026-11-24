@@ -42,13 +42,34 @@ const COMMANDS = [
 // The completion registry (lib/completions) fills ONCE at boot — the
 // run palette and `completions --internal` both read it, no help-text
 // scraping anywhere.
-registerCompletions(COMMANDS, {
-    // the tail-parameter facts (the declarative layer's per-verb data):
-    // the Tab rule asks the registry — a REQUIRED tail means Tab opens
-    // the help; a verb with no tail and no subverbs executes on Tab.
+import { commandTreeText } from "./lib/commandTree.js";
+import { type TailSpec, type ModeFlag } from "./lib/completions.js";
+import { getTree } from "./lib/completions.js";
+
+const VERB_TAILS: Record<string, TailSpec> = {
     tagspace: { name: "name", required: true, description: "the tagspace name" },
     close: { name: "name", required: false, description: "the tagspace to free (default: the focused one)" },
-});
+};
+
+const MODE_FLAGS: Record<string, Record<string, ModeFlag[]>> = {
+    close: {
+        tagspace: [{ flag: "--empty", description: "free EVERY empty tagspace at once" }],
+    },
+    new: {
+        terminal: [
+            { flag: "--on", description: "attach on a remote tagspace (focus-stealing prevented)" },
+            { flag: "--directory", description: "cd into <dir> first" },
+        ],
+    },
+    add: {
+        terminal: [
+            { flag: "--on", description: "attach on a remote tagspace (focus-stealing prevented)" },
+            { flag: "--directory", description: "cd into <dir> first" },
+        ],
+    },
+};
+
+registerCompletions(COMMANDS, VERB_TAILS, MODE_FLAGS);
 
 const cli = await createCLI({
   name,
@@ -66,6 +87,13 @@ for (const command of COMMANDS) {
 // and bare `--help`/`help` all delegate to bunli's root help; `help
 // <verb>` and `<verb> help` delegate to the verb's own --help.
 const argv = process.argv.slice(2);
+if (argv.includes("--command-tree")) {
+  // the FULL verb/parameter structure — the declarative facts, printed:
+  // usage tokens, tail parameters (with the blank semantics), flags and
+  // their mode-scoped relations. No prompts, no execution.
+  console.log(commandTreeText(getTree(), VERB_TAILS, MODE_FLAGS));
+  process.exit(0);
+}
 if (argv.length === 0) {
   // Bare `herbctl` is the palette shorthand: the run verb IS the entry
   // verb (its bare form is the command palette; Tab completes a single

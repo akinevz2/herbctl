@@ -27,15 +27,28 @@ export interface TailSpec {
     description: string;
 }
 
+/** a flag scoped to ONE mode token of a collapsed verb (--empty lives
+ *  under close's tagspace mode; --on/--directory under new/add's
+ *  terminal) — the registry carries the relation so the completions
+ *  offer the flag ONLY where it applies. */
+export interface ModeFlag {
+    flag: string;
+    description: string;
+}
+
 export interface VerbCompletions {
     name: string;
     description: string;
     tokens: string[];
     flags: string[];
+    /** the flag descriptions (the tree printer annotates with them) */
+    flagDescriptions?: Record<string, string>;
     /** the tail parameter fact, when the verb takes one (the declarative
      *  ARGS layer feeds this — the Tab rule asks the registry instead of
      *  scraping --help text) */
     tail?: TailSpec;
+    /** the mode-scoped flags, per mode token */
+    modeFlags?: Record<string, ModeFlag[]>;
 }
 
 export interface CompletionsTree {
@@ -86,12 +99,23 @@ export function registerCompletions(
         options?: Record<string, unknown>;
     }>,
     tails: Record<string, TailSpec> = {},
+    modeFlags: Record<string, Record<string, ModeFlag[]>> = {},
 ): void {
     for (const command of commands) {
         if (STOP.has(command.name.toLowerCase())) continue;
+        const scoped = modeFlags[command.name] ?? {};
+        const scopedAll = new Set(
+            Object.values(scoped).flatMap((mfs) => mfs.map((mf) => mf.flag)),
+        );
         const flags: string[] = [];
+        const flagDescriptions: Record<string, string> = {};
         for (const [key, opt] of Object.entries(command.options ?? {})) {
-            if (opt && typeof opt === "object") flags.push(`--${key}`);
+            if (opt && typeof opt === "object") {
+                const flag = `--${key}`;
+                if (!scopedAll.has(flag)) flags.push(flag);
+                const d = (opt as { description?: string }).description;
+                if (d) flagDescriptions[flag] = d;
+            }
         }
         registry.set(command.name, {
             name: command.name,
@@ -99,7 +123,9 @@ export function registerCompletions(
             tokens: enumTokens(command.description)
                 .filter((t) => t !== command.name),
             flags,
+            flagDescriptions,
             tail: tails[command.name],
+            modeFlags: Object.keys(scoped).length > 0 ? scoped : undefined,
         });
     }
 }
@@ -133,8 +159,19 @@ export function getCandidates(
     const verb = getVerb(head);
     if (verb === null) return []; // not a verb — nothing to offer
     if (rest.length > 0) {
-        return verb.flags.filter((f) => f.startsWith(prefix));
+        // the mode-scoped flags join the verb flags ONCE their mode
+        // token is consumed (--empty appears under close's tagspace)
+        const mode = rest.find((t) => verb.modeFlags?.[t] !== undefined);
+        const scoped = mode !== undefined
+            ? (verb.modeFlags?.[mode] ?? []).map((mf) => mf.flag)
+            : [];
+        return [
+            ...scoped,
+            ...verb.flags.filter((f) => f.startsWith(prefix)),
+        ].filter((f) => f.startsWith(prefix));
     }
+    // the verb level: the UNSCOPED flags only — a mode-scoped flag
+    // completes at its own mode's level (the tree shows the relation)
     return [
         ...verb.tokens.filter((t) => t.startsWith(prefix) && t !== head),
         ...verb.flags.filter((f) => f.startsWith(prefix)),
