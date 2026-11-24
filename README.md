@@ -5,7 +5,7 @@ The hlwm keybind imperative layer — the dots keybind chains and the
 float keybind state machines — as `herbctl <verb>` CLI subcommands
 and importable functions.
 
-[![CI](https://img.shields.io/github/actions/workflow/akinevz2/herbctl/ci.yml?branch=main)](https://github.com/akinevz2/herbctl/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/akinevz2/herbctl/ci.yml?branch=main)](https://github.com/akinevz2/herbctl/actions)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Project page: [akinevz.com/herbctl](https://akinevz.com/herbctl)
