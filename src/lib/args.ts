@@ -26,6 +26,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { rofiMenu, rofiInputThemePath } from "./rofi.js";
 import { launchTerminal } from "./terminal.js";
+import { hc } from "./hc.js";
 
 export interface ArgSpec {
     /** the parameter name (tail position order = declaration order) */
@@ -42,6 +43,16 @@ export interface ArgSpec {
     entries?: string[];
     /** return an error reason to reject a supplied/prompted value */
     validate?: (value: string) => string | undefined;
+    /** the parameter names an hlwm OBJECT KIND: the prompt's entries
+     *  are indexed LIVE from herbstutil/hc (never free-form) */
+    source?: "tagspaces" | "clients";
+    /** the blank-parameter semantics — a FUNCTIONAL FACT, declared:
+     *   "current"  blank refers to the CURRENT (focused) object — the
+     *              prompt offers it as the first entry and the verb
+     *              never asks twice
+     *   "input"    blank requires user input — the prompt is mandatory
+     *  Declared per verb; the audit lives in AGENTS.md. */
+    blank?: "current" | "input";
 }
 
 export interface ArgResolution {
@@ -81,6 +92,52 @@ export function resolveTails(
     return { values, missing: missing[0] ?? null };
 }
 
+/** the CURRENT object per live source — the "blank means the focused
+ *  one" resolution (the focused tagspace name / the focused client). */
+export async function currentObject(
+    source: NonNullable<ArgSpec["source"]>,
+): Promise<string | null> {
+    if (source === "tagspaces") {
+        const r = await hc("attr", "tags.focus.name");
+        return r === null ? null : r.stdout.trim();
+    }
+    const r = await hc("attr", "clients.focus.winid");
+    return r === null ? null : r.stdout.trim();
+}
+
+/** the LIVE prompt entries for a source (herbstutil/hc-indexed, never
+ *  free-form), with the current-object entry FIRST when the blank
+ *  semantics is "current". */
+export async function promptEntries(spec: ArgSpec): Promise<string[]> {
+    if (spec.entries) return [...spec.entries];
+    if (spec.source === "tagspaces") {
+        const { listTagspaces } = await import("./allocate.js");
+        const tags = await listTagspaces();
+        if (spec.blank === "current") {
+            const current = await currentObject("tagspaces");
+            if (current) return [`(focused) ${current}`, ...tags.filter((t) => t !== current)];
+        }
+        return tags;
+    }
+    if (spec.source === "clients") {
+        const { listClients } = await import("./hc.js");
+        return listClients();
+    }
+    return [];
+}
+
+/** map a prompt selection back to the VALUE (the "(focused) name"
+ *  entry resolves to the focused object's name). */
+export async function entryValue(
+    spec: ArgSpec,
+    selection: string,
+): Promise<string | undefined> {
+    if (selection.startsWith("(focused) ")) {
+        return (await currentObject(spec.source ?? "tagspaces")) ?? undefined;
+    }
+    return selection;
+}
+
 /** the themed rofi INPUT query: a single-argument string entry over the
  *  input.rasi capture theme (entries turn it into a choice list).
  *  Resolves null on cancel. */
@@ -95,7 +152,9 @@ export async function rofiInput(
         filter: filter || undefined,
         theme: rofiInputThemePath() ?? undefined,
     });
-    if (rc !== 0) return null;
+    // Tab (kb-custom-3, rc 12) CONFIRMS the typed input — the user's
+    // expectation when finishing a free-text entry; 10/13 accept too.
+    if (rc !== 0 && rc !== 10 && rc !== 12 && rc !== 13) return null;
     return selection;
 }
 
@@ -108,8 +167,10 @@ export async function terminalInput(
 ): Promise<string | null> {
     const dir = mkdtempSync(join(tmpdir(), "herbctl-arg."));
     const answer = join(dir, "answer");
+    // ESC-aware input: Escape aborts WITHOUT writing the answer (the
+    // terminal closes, the caller sees the fail shape); Enter submits.
     const script =
-        `bash -ic 'read -r -p "${title}: " a && printf %s "$a" > ${shellQ(answer)}'`;
+        `bash -ic 'a=""; while IFS= read -rsn1 k; do case "$k" in "") break ;; $'\\e') exit 1 ;; esac; a+="$k"; done; printf %s "$a" > ${shellQ(answer)}'`;
     const pid = await launchTerminal({ command: script, floating: true, urgent: true });
     if (pid === null) {
         rmSync(dir, { force: true, recursive: true });
@@ -147,6 +208,12 @@ export async function resolveVerbArgs(
     const spec = specs.find((s) => s.name === missing);
     if (!spec) return values;
     const label = [verb, sub].filter(Boolean).join(" ");
+    // the blank-parameter semantics: "current" — blank refers to the
+    // CURRENT (focused) object, resolved silently, no prompt, no fail
+    if (spec.blank === "current" && spec.source) {
+        const current = await currentObject(spec.source);
+        if (current !== null) return { ...values, [missing]: current };
+    }
     const value = await promptValue(spec, label);
     if (value === null) {
         console.error(argFailReason(missing, label));
@@ -179,20 +246,28 @@ export async function promptValue(
         wmSpawnPossible: true,
         noPrompt: process.env.HERBCTL_NO_PROMPT === "1",
     });
-    for (const backend of backends) {
-        for (;;) {
-            const value =
-                backend === "rofi"
-                    ? await rofiInput(title, spec.entries ?? [])
-                    : await terminalInput(title);
-            if (value === null) break; // this backend could not gather — next one
-            const problem = spec.validate?.(value);
-            if (problem === undefined) return value;
-            if (backend === "rofi") {
-                await rofiMenu({ prompt: problem, entries: [] });
-            } else {
-                console.error(`herbctl: ${problem} — prompting again`);
-            }
+    // the live entries: resolved ONCE per prompt (herbstutil/hc-indexed
+    // when the spec declares a source; the current-object entry first
+    // when the blank semantics is "current")
+    const entries = await promptEntries(spec);
+    // the FIRST AVAILABLE backend only — a user cancellation is a
+    // refusal (the fail shape), never a cascade into the next backend
+    const backend = backends[0];
+    if (backend === undefined) return null;
+    for (;;) {
+        const selected =
+            backend === "rofi"
+                ? await rofiInput(title, entries)
+                : await terminalInput(title);
+        if (selected === null) return null; // the user refused: the fail shape
+        const value = await entryValue(spec, selected);
+        if (value === undefined) break;
+        const problem = spec.validate?.(value);
+        if (problem === undefined) return value;
+        if (backend === "rofi") {
+            await rofiMenu({ prompt: problem, entries: [] });
+        } else {
+            console.error(`herbctl: ${problem} — prompting again`);
         }
     }
     return null;

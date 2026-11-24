@@ -163,6 +163,35 @@ export async function dismissNotifications(): Promise<boolean> {
     return helper("hc_dismiss-notifs");
 }
 
+/** close EVERY empty tagspace: the tagspaces with no clients (the
+ *  focused one excepted) merge into the first occupied one — the
+ *  emptiness reads through herbstutil's typed tree (client_count). */
+export async function closeEmptyTagspaces(): Promise<string[]> {
+    const closed: string[] = [];
+    const tags = await listTagspaces();
+    let target: string | null = null;
+    for (const tag of tags) {
+        const count = Number(
+            (await hc("attr", `tags.by-name.${tag}.client_count`))?.stdout ?? "1",
+        );
+        if (count > 0) {
+            target = tag;
+            break;
+        }
+    }
+    if (target === null) return closed; // everything is empty: keep all
+    for (const tag of tags) {
+        if (tag === target) continue;
+        const count = Number(
+            (await hc("attr", `tags.by-name.${tag}.client_count`))?.stdout ?? "1",
+        );
+        if (count === 0) {
+            if ((await hc("merge_tag", tag, target)) !== null) closed.push(tag);
+        }
+    }
+    return closed;
+}
+
 /** close a frame: a focused client is closed and the frame removed
  *  (close_and_remove); an empty focused frame is removed outright. */
 export async function closeFrame(): Promise<void> {

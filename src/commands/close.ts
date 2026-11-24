@@ -15,7 +15,8 @@
 //
 // The machines live in lib/chains.ts (or the inline bodies below) —
 // close is only the dispatch surface.
-import { defineCommand } from "@bunli/core";
+import { defineCommand, option } from "@bunli/core";
+import { z } from "zod";
 
 import {
     closeOrRemove,
@@ -24,7 +25,7 @@ import {
 } from "../lib/chains.js";
 import { attr, hc } from "../lib/hc.js";
 import { argFailReason, promptValue } from "../lib/args.js";
-import { closeFrame, dismissNotifications, freeTagspace } from "../lib/allocate.js";
+import { closeEmptyTagspaces, closeFrame, dismissNotifications, freeTagspace } from "../lib/allocate.js";
 
 async function closeTiling(): Promise<void> {
     const ff = (await attr("tags.focus.floating_focused")) ?? "false";
@@ -43,9 +44,18 @@ const MACHINES = {
     // the same frame/tagspace/notification objects)
     frame: closeFrame,
     tagspace: async () => {
+        // the DECLARATIVE argument: source = the live tagspaces
+        // (herbstutil-indexed), blank = the focused one — the prompt
+        // lists them with "(focused)" first; refused → the fail shape
         const name = positionalTag() ??
             await promptValue(
-                { name: "name", description: "the tagspace to free", promptTitle: "tagspace to free" },
+                {
+                    name: "name",
+                    description: "the tagspace to free",
+                    source: "tagspaces",
+                    blank: "current",
+                    promptTitle: "tagspace to free",
+                },
                 "close tagspace",
             )
         if (name === null) {
@@ -69,9 +79,28 @@ function positionalTag(): string | undefined {
 export default defineCommand({
     name: "close" as never,
     description:
-        "close <or-remove|window|tiling|xkill|frame|tagspace|notification>",
-    handler: async ({ positional }) => {
-        const run = MACHINES[positional[0] as keyof typeof MACHINES];
+        "close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>",
+    options: {
+        empty: option(z.boolean().optional(), {
+            argumentKind: "flag" as const,
+            description: "with tagspace: free EVERY empty tagspace at once",
+            short: "e",
+        }),
+    },
+    handler: async ({ flags, positional }) => {
+        // bunli leaves post-positional flags in the positional tail —
+        // sweep them out and honour them either way
+        const swept = positional.filter((p) => p !== "--empty" && p !== "-e");
+        const wantsEmpty = flags.empty === true
+            || swept.length !== positional.length;
+        if (swept[0] === "tagspace" && wantsEmpty) {
+            const closed = await closeEmptyTagspaces();
+            console.log(closed.length > 0
+                ? `closed the empty tagspaces: ${closed.join(" ")}`
+                : "no empty tagspaces to close");
+            return;
+        }
+        const run = MACHINES[swept[0] as keyof typeof MACHINES];
         if (!run) {
             throw new Error(
                 `Usage: herbctl close <or-remove|window|tiling|xkill`

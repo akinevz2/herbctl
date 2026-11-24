@@ -61,7 +61,10 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'close': {
       name: 'close',
-      description: 'close <or-remove|window|tiling|xkill|frame|tagspace|notification>',
+      description: 'close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>',
+      options: {
+        'empty': { type: 'z.boolean.optional', required: false, hasDefault: false, description: 'with tagspace: free EVERY empty tagspace at once', short: 'e', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
+      },
       path: './src/commands/close'
     },
   'completions': {
