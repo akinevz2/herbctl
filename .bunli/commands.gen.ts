@@ -11,6 +11,7 @@ import Find from '../src/commands/find.js'
 import Float from '../src/commands/float.js'
 import Frame from '../src/commands/frame.js'
 import Jump from '../src/commands/jump.js'
+import Launch from '../src/commands/launch.js'
 import Move from '../src/commands/move.js'
 import New from '../src/commands/new.js'
 import Open from '../src/commands/open.js'
@@ -24,7 +25,7 @@ import Tile from '../src/commands/tile.js'
 import Toggle from '../src/commands/toggle.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['add', 'close', 'completions', 'find', 'float', 'frame', 'jump', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tagspace', 'tile', 'toggle'] as const
+const names = ['add', 'close', 'completions', 'find', 'float', 'frame', 'jump', 'launch', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tagspace', 'tile', 'toggle'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
@@ -35,6 +36,7 @@ const modules: Record<GeneratedNames, Command<any>> = {
   'float': Float,
   'frame': Frame,
   'jump': Jump,
+  'launch': Launch,
   'move': Move,
   'new': New,
   'open': Open,
@@ -110,6 +112,11 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       name: 'jump',
       description: 'jump <south|forward|deck|dedeck>',
       path: './src/commands/jump'
+    },
+  'launch': {
+      name: 'launch',
+      description: 'Rofi drun/run app launcher',
+      path: './src/commands/launch'
     },
   'move': {
       name: 'move',

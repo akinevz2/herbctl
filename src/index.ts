@@ -23,10 +23,13 @@ import openCmd from "./commands/open.js";
 import runCmd from "./commands/run.js";
 import newCmd from "./commands/new.js";
 import addCmd from "./commands/add.js";
+import launchCmd from "./commands/launch.js";
 import tagspaceCmd from "./commands/tagspace.js";
 import findCmd from "./commands/find.js";
 import completionsCmd from "./commands/completions.js";
 
+// alphabetical: the palette, the completions and --command-tree all
+// derive their order from this array
 const COMMANDS = [
   jump, shift, frame, float, split, close, toggle,
   rotateTree,
@@ -36,6 +39,7 @@ const COMMANDS = [
   expand,
   openCmd, runCmd,
   newCmd, addCmd, tagspaceCmd,
+  launchCmd,
   findCmd, completionsCmd,
 ];
 
@@ -69,6 +73,7 @@ const MODE_FLAGS: Record<string, Record<string, ModeFlag[]>> = {
     },
 };
 
+COMMANDS.sort((a, b) => String((a as { name: string }).name).localeCompare(String((b as { name: string }).name)));
 registerCompletions(COMMANDS, VERB_TAILS, MODE_FLAGS);
 
 const cli = await createCLI({
