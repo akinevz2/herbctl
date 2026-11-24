@@ -12,7 +12,7 @@ import { rotateTree, type RotateTreeMode } from "../lib/chains.js";
 
 export default defineCommand({
     name: "rotate-tree" as never,
-    description: "Rotate the tree",
+    description: "rotate the frame tree",
     options: {
         focus: option(z.boolean().default(false), {
             description: "Force the focus/cycle branch (never rotate)",

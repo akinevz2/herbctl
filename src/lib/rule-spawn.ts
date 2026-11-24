@@ -12,7 +12,7 @@
 
 import { spawn as childSpawn } from "node:child_process";
 
-import { attr, attrTree, asString, hc } from "./hc.js";
+import { attr, attrTree, asString, hc, listClientsByTag } from "./hc.js";
 import { ui } from "./debug.js";
 import { centerWindowInFocusedFrame } from "./geometry.js";
 
@@ -42,15 +42,14 @@ export interface SpawnOnceOptions extends SpawnMatch {
     cmdString?: string;
 }
 
-/** Every client on the focused tag in WM order — the fields the
- *  fresh-client detection needs (wid + class). One attrTree round
- *  trip per client, plain-attr fallback on parse failure. */
+/** Every client on the focused tag in the attr-tree order — the
+ *  fields the fresh-client detection needs (wid + class). One
+ *  attrTree round trip per client, plain-attr fallback on parse
+ *  failure. */
 async function focusedTagClients(): Promise<Array<{ wid: string; cls: string | null }>> {
     const tag = await attr("tags.focus.name");
     if (tag === null) return [];
-    const r = await hc("list_clients", `--tag=${tag}`);
-    if (r === null) return [];
-    const wids = r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    const wids = await listClientsByTag(tag);
     return Promise.all(wids.map(async (wid) => {
         const tree = await attrTree(`clients.${wid}.`);
         if (tree) return { wid, cls: asString(tree.attributes.class) ?? null };

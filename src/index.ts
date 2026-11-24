@@ -2,6 +2,9 @@
 
 import { createCLI } from "@bunli/core";
 
+import { registerCompletions } from "./lib/completions.js";
+import { name, version, description } from "../package.json" with { type: "json" };
+
 import jump from "./commands/jump.js";
 import shift from "./commands/shift.js";
 import frame from "./commands/frame.js";
@@ -20,9 +23,26 @@ import openCmd from "./commands/open.js";
 import runCmd from "./commands/run.js";
 import newCmd from "./commands/new.js";
 import addCmd from "./commands/add.js";
-import focusCmd from "./commands/focus.js";
+import tagspaceCmd from "./commands/tagspace.js";
+import findCmd from "./commands/find.js";
+import completionsCmd from "./commands/completions.js";
 
-import { name, version, description } from "../package.json" with { type: "json" };
+const COMMANDS = [
+  jump, shift, frame, float, split, close, toggle,
+  rotateTree,
+  reload,
+  zoomToggle,
+  tile, spawn, move,
+  expand,
+  openCmd, runCmd,
+  newCmd, addCmd, tagspaceCmd,
+  findCmd, completionsCmd,
+];
+
+// The completion registry (lib/completions) fills ONCE at boot — the
+// run palette and `completions --internal` both read it, no help-text
+// scraping anywhere.
+registerCompletions(COMMANDS);
 
 const cli = await createCLI({
   name,
@@ -30,15 +50,7 @@ const cli = await createCLI({
   description,
 });
 
-for (const command of [
-  jump, shift, frame, float, split, close, toggle,
-  rotateTree,
-  reload,
-  tile, spawn, move,
-  expand,
-  openCmd, runCmd,
-  newCmd, addCmd, focusCmd,
-]) {
+for (const command of COMMANDS) {
   cli.command(command);
 }
 

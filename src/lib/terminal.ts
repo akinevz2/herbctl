@@ -50,6 +50,11 @@ export interface TerminalOptions {
     noDistract?: boolean;
     /** attach on this tagspace (an hlwm tag; created when missing). */
     tag?: string | null;
+    /** the help-terminal shape: floating at FULL monitor height
+     *  (half the monitor width, horizontally centered) via the
+     *  floating_geometry rule consequence. The pager/help surfaces
+     *  read better tall than as a corner window. */
+    fullHeight?: boolean;
 }
 
 /** bash printf %q equivalent (single-quote wrapping is argv-safe). */
@@ -141,6 +146,24 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
     if (opts.urgent) rule.push("floating=on", "focus=off");
     if (opts.noDistract) rule.push("focus=off");
     if (opts.tag) rule.push(`tag=${opts.tag}`, "focus=off", "switchtag=off");
+    if (opts.fullHeight) {
+        // Full monitor height, half width, horizontally centered —
+        // the pager surface (monitor_rect: "x y w h"; fail-soft: no
+        // rect, no geometry, the plain floating rule already applied
+        // by --floating callers)
+        const rect = (await hc("monitor_rect"))?.stdout.trim();
+        const [mx, my, mw, mh] = (rect ?? "").split(/\s+/).map(Number);
+        if (Number.isFinite(mx) && Number.isFinite(mh) && mw > 0) {
+            const w = Math.floor(mw / 2);
+            const x = mx + Math.floor((mw - w) / 2);
+            rule.push(
+                "floating=on",
+                `floating_geometry=${w}x${mh}+${x}+${my}`,
+            );
+        } else {
+            rule.push("floating=on");
+        }
+    }
 
     const before = opts.urgent ? await clientIds() : new Set<string>();
     await hc("lock");

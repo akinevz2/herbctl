@@ -44,6 +44,15 @@ export interface RofiMenuOptions {
     entries: string[];
     /** Pre-filled filter text (the "completion" re-open). */
     filter?: string;
+    /** Pre-selected row index (the scroll-preview re-open). */
+    selectedRow?: number;
+    /** Scroll handling: "exit" binds the wheel to the custom exits
+     *  (kb-custom-1/2 = ScrollUp/ScrollDown, rc 10/11) and clears the
+     *  default ml-* scroll navigation — the wheel leaves the menu with
+     *  the HIGHLIGHTED row reported, and the caller owns the movement
+     *  (the find switcher's focus-and-reopen loop). Default: the
+     *  standard rofi scroll = move the selection. */
+    scroll?: "exit";
 }
 
 export interface RofiResult {
@@ -60,7 +69,7 @@ export interface RofiResult {
  * spawn failure resolves { rc: 1, selection: "" } — the cancel shape.
  */
 export async function rofiMenu(
-    { prompt, entries, filter }: RofiMenuOptions,
+    { prompt, entries, filter, selectedRow, scroll }: RofiMenuOptions,
 ): Promise<RofiResult> {
     const theme = rofiThemePath();
     const argv = [
@@ -73,6 +82,19 @@ export async function rofiMenu(
         // disable the option but make rofi log a parse error per start.
         "-matching-negate-char", "\u0001",
         ...(filter ? ["-filter", filter] : []),
+        ...(selectedRow !== undefined
+            ? ["-selected-row", String(selectedRow)]
+            : []),
+        ...(scroll === "exit"
+            ? [
+                "-kb-custom-1", "ScrollUp",
+                "-kb-custom-2", "ScrollDown",
+                // The wheel must be the custom exit ONLY: the default
+                // listview scroll would fire alongside it.
+                "-ml-row-up", "",
+                "-ml-row-down", "",
+            ]
+            : []),
         "-kb-accept-alt", "",
         "-kb-accept-custom", "",
         "-kb-accept-custom-alt", "",
@@ -105,11 +127,13 @@ export async function rofiMenu(
 
 /**
  * Run a command line in a floating temporary terminal (the palette's
- * Shift-Return behavior): the output is the point, and the terminal
- * never disturbs the tiling layout. Resolves the terminal's pid (for
- * the tracked help-terminals) or null when the spawn failed.
+ * Shift-Return behavior, the help ACTION's pager): the output is the
+ * point, and the terminal never disturbs the tiling layout — full
+ * monitor height (the help surfaces read better tall). Resolves the
+ * terminal's pid (for the tracked help-terminals) or null when the
+ * spawn failed.
  */
 export async function runInTerminal(commandLine: string): Promise<number | null> {
     const { launchTerminal } = await import("./terminal.js");
-    return await launchTerminal({ command: commandLine, floating: true });
+    return await launchTerminal({ command: commandLine, floating: true, fullHeight: true });
 }

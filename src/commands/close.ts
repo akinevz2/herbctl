@@ -57,7 +57,7 @@ function positionalTag(): string | undefined {
 export default defineCommand({
     name: "close" as never,
     description:
-        "close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>",
+        "close <or-remove|window|tiling|xkill|frame|tagspace|notification>",
     handler: async ({ positional }) => {
         const run = MACHINES[positional[0] as keyof typeof MACHINES];
         if (!run) {

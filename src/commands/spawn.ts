@@ -20,7 +20,7 @@ import { launchTerminal } from "../lib/terminal.js";
 
 export default defineCommand({
     name: "spawn" as never,
-    description: "Spawn client with rule",
+    description: "spawn a client with a rule",
     options: {
         class: option(z.string().optional(), {
             description: "WM_CLASS match criterion", short: "c",

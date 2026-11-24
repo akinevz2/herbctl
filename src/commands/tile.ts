@@ -11,7 +11,7 @@ import { tile } from "../lib/tile.js";
 
 export default defineCommand({
     name: "tile" as never,
-    description: "Tile into empty frame",
+    description: "tile into the empty frame",
     options: {
         foreground: optionForForeground(),
     },

@@ -21,10 +21,10 @@
 //   Escape              cancelled, nothing runs
 //
 // The COMPLETION palette: `herbctl run <command> [typed-args...]` —
-// the machine runs `<command> <args> --help` (falling back to
-// `<command> <args> help`), parses the completion tokens out of the
-// help text — the indented subcommands AND the --flags — and opens a
-// rofi menu over them, showing the SAME help text as a PERMANENT
+// for herbctl the levels come from the in-process completion registry
+// (lib/completions — the SAME data `herbctl completions --internal`
+// reports as JSON), no help-text scraping: the level's tokens and
+// --flags open as a rofi menu, with the level's surface as a PERMANENT
 // dunst notification at every level (top level included, replace-id'd:
 // one notification at a time, no timeout — it stays until dismissed).
 // The notification carries a help ACTION (dunstify button): pressing
@@ -43,8 +43,8 @@
 //   Ctrl-Shift-Return accept with output: the line runs in a floated
 //                     temporary terminal (the output is the point)
 //   Tab / Ctrl-Return descend: the selection is appended to the args
-//                     and (for herbctl) the machine re-runs the help
-//                     of the deeper command — single-level completions
+//                     and (for herbctl) the deeper level's surface
+//                     replaces — single-level completions
 //                     at a time, the replacing notification tracks the
 //                     level
 //   Escape            cancel
@@ -55,6 +55,7 @@ import { z } from "zod";
 
 import { rofiMenu, runInTerminal, spawnEnv } from "../lib/rofi.js";
 import { spawnDetached } from "../lib/rule-spawn.js";
+import { getCandidates, getTree, getVerb } from "../lib/completions.js";
 
 /** Which executable name prefixes the command palette lists. */
 const PREFIXES = ["rofi_", "hc_", "hlwm"];
@@ -73,30 +74,75 @@ function selfCmd(): string {
     return Bun.which("herbctl") ?? process.execPath;
 }
 
-/** Show a command's help text as a PERMANENT dunst notification (no
- *  timeout — it stays until dismissed/replaced) with a help ACTION:
- *  pressing the button opens the FULL `<command> --help` in a pager
- *  inside a floated temporary terminal. Fail-soft: no dunstify, no
- *  dunst — no notification, no error. */
-function notifyHelp(line: string, text: string): void {
-    if (text.trim() === "") return;
+/** markup-escape for dunst bodies (the shared convention). */
+function escapeMarkup(s: string): string {
+    return s.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+}
+
+/** Show a command's completion surface as a PERMANENT dunst
+ *  notification (no timeout — it stays until dismissed/replaced) with
+ *  a help ACTION: pressing the button opens the FULL `<command>
+ *  --help` in a pager inside a floated temporary terminal. The body
+ *  is synthesized from the completion registry (lib/completions) —
+ *  terse, one screenful, no help-text scraping. Fail-soft: no
+ *  dunstify, no dunst — no notification, no error. */
+function notifyLevel(line: string, body: string): void {
+    if (body.trim() === "") return;
     // Plain text, markup-escaped; capped so a huge help dump never
     // floods the screen (the pager action carries the full text).
-    const escape = (s: string) =>
-        s.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
-            .replaceAll(">", "&gt;");
-    let body = escape(text.trim())
-        .split("\n").slice(0, 40).join("\n");
-    if (body.length > 2500) body = `${body.slice(0, 2500)}\n…`;
+    const escaped = escapeMarkup(body.trim());
     const pager = process.env.PAGER || "less -R";
     const view = `${line} --help 2>&1 | ${pager}`;
     // The action waiter: dunstify blocks until the button is pressed
     // (printing the action key) or the notification is closed/replaced
     // (printing a close reason) — only the button press opens the
     // pager terminal. Detached: it outlives the palette.
+    try {
+        spawnDetached("sh", ["-c", helpActionScript(line, escaped, view, "low")]);
+    } catch {
+        // no dunstify/sh — the menu is the interface anyway
+    }
+}
+
+/** The shared dunstify script: a PERMANENT notification with the help
+ *  ACTION — pressing the button opens `<view>` (the full --help pager
+ *  line) in a floated full-height terminal. `level` is the dunst
+ *  urgency (low for level surfaces, critical for failures). */
+function helpActionScript(
+    title: string,
+    escapedBody: string,
+    view: string,
+    level: string,
+): string {
+    return [
+        `act=$(dunstify -a herbctl -r ${NOTIFY_ID} -u ${level} -t 0`
+        + ` -A 'help,help' ${shQuote(title)} ${shQuote(escapedBody)})`,
+        `[ "$act" = help ] && exec ${selfCmd()} spawn terminal --floating`
+        + ` ${shQuote(view)}`,
+    ].join("\n");
+}
+
+/** SUBMIT a completed palette line, detached — but not blindly: the
+ *  waiter captures the exit status, and a FAILURE (rc != 0 — a bare
+ *  verbs-chain missing its required mode, an unknown flag…) raises a
+ *  CRITICAL dunst notification carrying the command's help surface
+ *  (the registry summary) with the same help ACTION. The line runs
+ *  unquoted shell text by design (it may embed shell words). */
+function submitLine(line: string, helpSummary: string): void {
+    const view = `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`;
+    // The failure surface: the failing line, the error excerpt
+    // (capped), then the help summary — all assembled shell-side
+    // (the exit status exists only there).
     const script = [
-        `act=$(dunstify -a herbctl -r ${NOTIFY_ID} -u low -t 0`
-        + ` -A 'help,help' ${shQuote(line)} ${shQuote(body)})`,
+        `err=$(${line} 2>&1); rc=$?`,
+        `[ $rc -eq 0 ] && exit 0`,
+        `excerpt=$(printf '%s' "$err" | head -c 500)`,
+        `body=$(printf 'exit %s — %s\\n\\n%s' "$rc" "$excerpt" ${
+            shQuote(escapeMarkup(helpSummary))
+        })`,
+        `act=$(dunstify -a herbctl -r ${NOTIFY_ID} -u critical -t 0`
+        + ` -A 'help,help' ${shQuote(line)} "$body")`,
         `[ "$act" = help ] && exec ${selfCmd()} spawn terminal --floating`
         + ` ${shQuote(view)}`,
     ].join("\n");
@@ -107,100 +153,40 @@ function notifyHelp(line: string, text: string): void {
     }
 }
 
-/** Common help-section headings that are never completions. */
-const STOP = new Set([
-    "usage", "options", "commands", "subcommands", "arguments", "flags",
-    "examples", "description", "version", "help", "global", "synopsis",
-    "available", "notes", "environment",
-]);
-
-/**
- * Extract the completion tokens from a help text: the EXACTLY
- * two-space indented bare words at the start of a line (the section
- * entry indentation of every CLI help shape: bunli, cobra, clap), the
- * long flags in those same entry lines, AND the <a|b|c> enum slots in
- * usage lines — the collapsed verbs (jump/shift/frame) declare their
- * directions there, and the palette must index them.
- * Deeper indentation is deliberately ignored — it is wrapped
- * description prose (a --force mentioned mid-sentence is not a
- * completion).
- */
-export function parseHelpCompletions(text: string): string[] {
-    const seen = new Set<string>();
-    for (const line of text.split("\n")) {
-        const entry = line.match(/^ {2}([A-Za-z][\w:-]*)\s/);
-        if (entry && !STOP.has(entry[1].toLowerCase())) seen.add(entry[1]);
-        for (const flag of line.matchAll(/^ {2,4}(--[A-Za-z][\w-]*)/g)) {
-            seen.add(flag[1]);
-        }
-        for (const slot of line.matchAll(/<([\w|]+)>/g)) {
-            for (const token of slot[1].split("|")) {
-                if (/^[A-Za-z][\w-]*$/.test(token)) seen.add(token);
-            }
-        }
+/** The Tab resolution rule: Tab on a completion RESOLVES TO RUNNING
+ *  (submit) rather than looping the token into the rofi filter, when
+ *  the command is already complete:
+ *   - a NON-FLAG token at the VERB level (args.length > 0) is a mode
+ *     token — the deeper level only offers flags, so submitting is
+ *     the only meaningful resolution;
+ *   - otherwise the old tail rule: the token already appears among
+ *     the next level's completions (a re-offered flag).
+ *  At the ROOT level (args.length === 0) Tab on a verb DESCENDS —
+ *  that is the completion palette's drill, never a submit. Pure, so
+ *  the palette loop stays thin and the rule is testable. */
+export function tabShouldSubmit(
+    selection: string,
+    argsLen: number,
+    current: string[],
+    next: string[],
+): boolean {
+    if (selection === "") return false;
+    if (argsLen > 0 && !selection.startsWith("--")
+        && current.includes(selection)) {
+        return true;
     }
-    return [...seen];
+    return tabTailComplete(selection, next);
 }
 
-/** Capture `<cmd> <args> --help`, with a `--format toon` plain-text
- *  override for bunli-style CLIs and a bare `help` subcommand fallback
- *  for CLIs without --help.
- *
- *  SAFETY: the bare `help` fallback only ever runs at the TOP level
- *  (empty args): at deeper levels `<cmd> <args> help` can be a real
- *  execution — for `herbctl terminal` the positional args ARE a
- *  command string, so every fallback call would spawn a terminal
- *  (the nested-alacritty spawn loop of 2026-11-16). The --help shapes
- *  short-circuit to help output in bunli and are always safe; the
- *  fallback only fires when they yielded NOTHING, and only once.
- *
- *  The variant that parses into the MOST completions wins. Resolves
- *  "" on any failure — the caller re-opens an empty menu instead of
- *  wedging. */
-const HELP_VARIANTS: string[][] = [
-    ["--help"],
-    ["--format", "toon", "--help"],
-    ["help"],
-];
-
-async function captureHelp(cmd: string, args: string[]): Promise<string> {
-    let best = "";
-    let bestCount = -1;
-    for (const suffix of HELP_VARIANTS) {
-        // The bare `help` subcommand: top level only (see SAFETY note).
-        if (args.length > 0 && suffix[0] === "help") continue;
-        let text = "";
-        try {
-            const proc = Bun.spawn([cmd, ...args, ...suffix], {
-                stdout: "pipe",
-                stderr: "pipe",
-                env: spawnEnv(),
-                timeout: 5000,
-            });
-            const [out, err] = await Promise.all([
-                new Response(proc.stdout).text(),
-                new Response(proc.stderr).text(),
-            ]);
-            await proc.exited;
-            text = `${out}\n${err}`;
-        } catch {
-            continue; // try the next shape
-        }
-        // Serialized-JSON help is NEVER a menu source: it parses into
-        // completions only by accident (the <a|b|c> slots inside the
-        // text field), and it displays as a JSON blob in the help
-        // notification. The toon variant carries the same help as
-        // plain text.
-        const trimmed = text.trimStart();
-        if (trimmed.startsWith("{") || trimmed.startsWith("[")) continue;
-        const count = parseHelpCompletions(text).length;
-        if (count > bestCount) {
-            best = text;
-            bestCount = count;
-        }
-        if (bestCount > 0) break; // a good help capture — stop early
-    }
-    return best;
+/** The Tab tail short-circuit: when the token just Tab-completed
+ *  ALREADY appears among the NEXT level's completions, the command is
+ *  tail-complete — descending would re-offer the same verb (the
+ *  collapsed verbs' usage enum re-appears at every level) and allow
+ *  doubled tails like `float focus focus`. Tab resolves to RUNNING
+ *  the line instead. Pure, so the palette loop stays thin and the
+ *  rule is testable. */
+export function tabTailComplete(tail: string, nextCompletions: string[]): boolean {
+    return tail !== "" && nextCompletions.includes(tail);
 }
 
 /** One find pass over the PATH dirs (the command palette's
@@ -303,7 +289,7 @@ async function commandPalette(): Promise<void> {
 
 export default defineCommand({
     name: "run" as never,
-    description: "palette: bare = helper scripts, <command> = completions",
+    description: "the command palette",
     options: {
         extra: option(z.array(z.string()).default([]), {
             description: "command palette: extra name prefixes (repeatable)",
@@ -348,22 +334,38 @@ export async function runPalette(initial: string[]): Promise<void> {
     // the help notification dismissed — nothing outlives the palette.
     const pagerPids: number[] = [];
     try {
-        // EVERY level — top level included — shows its command's help
-        // as a dunst notification (replace-id'd: one notification at a
-        // time, always describing what the open menu is over).
-        while (args.length <= MAX_DESCEND) {
-            // The help capture + completion menu is for HERBCTL only:
-            // for any other command the "help" capture EXECUTES the
-            // command (--help / help are not conventions scripts
-            // honor), and its output is execution result, not a
-            // completion surface. Those sessions open an EMPTY menu —
-            // typing still completes the line, Return submits it.
-            const isHerbctl = cmd === "herbctl";
-            const help = isHerbctl ? await captureHelp(cmd, args) : "";
-            if (isHerbctl) {
-                notifyHelp([cmd, ...args].join(" "), help);
+        // EVERY level — top level included — shows the level's
+        // completion surface as a dunst notification (replace-id'd:
+        // one notification at a time, always describing what the open
+        // menu is over). The surface comes from the in-process
+        // completion registry (lib/completions) — no subprocess, no
+        // help-text scraping.
+        const isHerbctl = cmd === "herbctl";
+        // The level summary: the terse description + the mode tokens
+        // and flags, one section per line (the notification body).
+        const summaryFor = (a: string[]): string => {
+            if (!isHerbctl) return ""; // non-herbctl: the empty menu
+            if (a.length === 0) {
+                return "herbctl <verb>\nverbs: "
+                    + [...getTree().commands.map((c) => c.name)].join(" ");
             }
-            const completions = parseHelpCompletions(help);
+            const verb = getVerb(a[0]);
+            if (verb === null) return ""; // not a verb: empty menu
+            const modes = verb.tokens.length > 0
+                ? `\nmodes: ${verb.tokens.join(" ")}`
+                : "";
+            const flags = verb.flags.length > 0
+                ? `\nflags: ${verb.flags.join(" ")}`
+                : "";
+            return `${verb.description}${modes}${flags}`;
+        };
+        while (args.length <= MAX_DESCEND) {
+            // The completion menu is for HERBCTL only: for any other
+            // command there is no registry — those sessions open an
+            // EMPTY menu — typing still completes the line, Return
+            // submits it.
+            notifyLevel([cmd, ...args].join(" "), summaryFor(args));
+            const completions = isHerbctl ? getCandidates(args, "") : [];
             const { rc, selection } = await rofiMenu({
                 prompt: [cmd, ...args].join(" "),
                 entries: completions,
@@ -389,10 +391,23 @@ export async function runPalette(initial: string[]): Promise<void> {
                 break;
             }
             if (rc === 12) {
-                // Tab: ALWAYS descend (explicit exploration) — the
-                // selection joins the args, the help re-runs, the
-                // notification replaces.
-                args = [...args, selection];
+                // Tab: descend — UNLESS the command is already
+                // complete, in which case Tab RESOLVES TO RUNNING the
+                // line (the Return semantics): a mode token at the
+                // verb level (the deeper level only offers flags), or
+                // a tail the next level re-offers (the flag case).
+                // Never a loop, never a doubled verb.
+                const next = [...args, selection];
+                const nextCompletions = isHerbctl
+                    ? getCandidates(next, "")
+                    : [];
+                if (tabShouldSubmit(selection, args.length, completions, nextCompletions)) {
+                    if (cmd !== "herbctl" || next.length > 0) {
+                        submitLine([cmd, ...next].join(" "), summaryFor(next));
+                    }
+                    break;
+                }
+                args = next;
                 continue;
             }
             if (rc === 0 || rc === 13) {
@@ -404,12 +419,12 @@ export async function runPalette(initial: string[]): Promise<void> {
                     ? [cmd, ...args]
                     : [cmd, ...args, selection];
                 if (final.length > 1 || cmd !== "herbctl") {
-                    spawnDetached("sh", ["-c", final.join(" ")]);
+                    submitLine(final.join(" "), summaryFor(args));
                 }
                 break;
             }
-            // Tab (rc 12): descend — the selection joins the args and
-            // (for herbctl) the help re-runs.
+            // Other custom exits (rc 12+ unhandled): descend the same
+            // way — the selection joins the args and the help re-runs.
             args = [...args, selection];
         }
     } finally {

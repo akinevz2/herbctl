@@ -197,7 +197,9 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x1000002"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|0|2|max|work|800x600+6+35|false"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "0"],
-            ["^list_clients --tag=work$", "0", "0x1000001\n0x1000002"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n2 children:\\n  0x1000001.\\n  0x1000002."],
+            ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
+            ["^attr clients\\.0x1000002\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
@@ -210,7 +212,9 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"], // ff read
-            ["list_clients", "--tag=work"], // first_float scan
+            ["attr", "clients."],
+                ["attr", "clients.0x1000001.tag"],
+                ["attr", "clients.0x1000002.tag"], // first_float scan
             ["attr", "clients.0x1000001.floating"],
             ["attr", "clients.0x1000001.minimized"],
             ["attr", "clients.focus.floating"], // the focused-float probe (close-out edge)
@@ -229,7 +233,9 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr clients\\.focus\\.winid$", "0", "0x100000d"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|2|max|work|800x600+6+35|false"],
             ["^attr tags\\.focus\\.tiling\\.focused_frame\\.client_count$", "0", "1"],
-            ["^list_clients --tag=work$", "0", "0x1000001\n0x100000d"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n2 children:\\n  0x1000001.\\n  0x100000d."],
+            ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
+            ["^attr clients\\.0x100000d\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
@@ -242,7 +248,9 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"], // ff read
-            ["list_clients", "--tag=work"], // first_float scan
+            ["attr", "clients."],
+                ["attr", "clients.0x1000001.tag"],
+                ["attr", "clients.0x100000d.tag"], // first_float scan
             ["attr", "clients.0x1000001.floating"],
             ["attr", "clients.0x1000001.minimized"],
             ["attr", "clients.focus.floating"], // the focused-float probe (close-out edge)
@@ -258,7 +266,8 @@ describe("floatYank (hc_floatx port)", () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|1|grid|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x1000003"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000003."],
+            ["^attr clients\\.0x1000003\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""], // re-entry fails: no floats
@@ -274,7 +283,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000003.tag"],
             ["attr", "clients.0x1000003.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -297,7 +307,8 @@ describe("floatYank (hc_floatx port)", () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000004"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|1|2|max|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x1000004"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000004."],
+            ["^attr clients\\.0x1000004\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000004\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000004\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -309,7 +320,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000004.tag"],
             ["attr", "clients.0x1000004.floating"],
             ["attr", "clients.0x1000004.minimized"],
             UNFLOAT_CHAIN("0x1000004"),
@@ -323,7 +335,8 @@ describe("floatYank (hc_floatx port)", () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000006"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "2|1|1|max|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x1000005"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000005."],
+            ["^attr clients\\.0x1000005\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000005\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000005\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -335,7 +348,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000005.tag"],
             ["attr", "clients.0x1000005.floating"],
             ["attr", "clients.0x1000005.minimized"],
             UNFLOAT_CHAIN("0x1000006"),
@@ -349,7 +363,8 @@ describe("floatYank (hc_floatx port)", () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x1000007"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|3|grid|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x1000007"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000007."],
+            ["^attr clients\\.0x1000007\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000007\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000007\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -361,7 +376,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000007.tag"],
             ["attr", "clients.0x1000007.floating"],
             ["attr", "clients.0x1000007.minimized"],
             UNFLOAT_CHAIN("0x1000007"),
@@ -375,7 +391,8 @@ describe("floatYank (hc_floatx port)", () => {
         scenario([
             ["^attr clients\\.focus\\.winid$", "0", "0x100000b"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|3|max|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x100000b"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x100000b."],
+            ["^attr clients\\.0x100000b\\.tag$", "0", "work"],
             ["^attr clients\\.0x100000b\\.floating$", "0", "true"],
             ["^attr clients\\.0x100000b\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -387,7 +404,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x100000b.tag"],
             ["attr", "clients.0x100000b.floating"],
             ["attr", "clients.0x100000b.minimized"],
             UNFLOAT_CHAIN("0x100000b"),
@@ -402,7 +420,8 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x1000008"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|2|grid|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x1000008"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000008."],
+            ["^attr clients\\.0x1000008\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000008\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
@@ -415,7 +434,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000008.tag"],
             ["attr", "clients.0x1000008.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -437,7 +457,8 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x1000009"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "1|0|2|grid|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x1000009"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000009."],
+            ["^attr clients\\.0x1000009\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000009\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
@@ -451,7 +472,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000009.tag"],
             ["attr", "clients.0x1000009.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -462,9 +484,11 @@ describe("floatYank (hc_floatx port)", () => {
              ",", "attr", "tags.focus.frame_count", ",", "echo", "|",
              ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
              ",", "attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"], // has_minimized re-enumerates
+            ["attr", "clients."],
+                ["attr", "clients.0x1000009.tag"], // has_minimized re-enumerates
             ["chain", ",", "attr", "clients.0x1000009.minimized"], // has_minimized
-            ["list_clients", "--tag=work"], // the reveal re-enumerates
+            ["attr", "clients."],
+                ["attr", "clients.0x1000009.tag"], // the reveal re-enumerates
             ["chain", ",", "attr", "clients.0x1000009.minimized", "off"], // reveal
             ["unlock"],
         ]);
@@ -475,7 +499,8 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr tags\\.focus\\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x100000c"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|1|max|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x100000c"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x100000c."],
+            ["^attr clients\\.0x100000c\\.tag$", "0", "work"],
             ["^attr clients\\.0x100000c\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
@@ -489,7 +514,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x100000c.tag"],
             ["attr", "clients.0x100000c.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -501,7 +527,8 @@ describe("floatYank (hc_floatx port)", () => {
              ",", "attr", "tags.focus.tiling.focused_frame.algorithm", ",", "echo", "|",
              ",", "attr", "tags.focus.name"],
             ["attr", "tags.by-name.work.client_count"], // tag_total == 0 -> no remove
-            ["list_clients", "--tag=work"], // has_minimized re-enumerates
+            ["attr", "clients."],
+                ["attr", "clients.0x100000c.tag"], // has_minimized re-enumerates
             ["chain", ",", "attr", "clients.0x100000c.minimized"], // has_minimized
             ["spawn", `${FIX}/polyframes hidden`],
             ["unlock"],
@@ -513,7 +540,8 @@ describe("floatYank (hc_floatx port)", () => {
             ["^attr tags\.focus\.name$", "0", "work"],
             ["^attr clients\\.focus\\.winid$", "0", "0x100000a"],
             ["^chain , attr tags\\.focus\\.curframe_wcount", "0", "0|0|1|grid|work|800x600+6+35|false"],
-            ["^list_clients --tag=work$", "0", "0x100000a"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x100000a."],
+            ["^attr clients\\.0x100000a\\.tag$", "0", "work"],
             ["^attr clients\\.0x100000a\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
@@ -526,7 +554,8 @@ describe("floatYank (hc_floatx port)", () => {
             stateChain(),
             ["attr", "tags.focus.name"], // the explicit tag read (the state chain no longer carries it)
             ["attr", "tags.focus.floating_focused"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x100000a.tag"],
             ["attr", "clients.0x100000a.floating"],
             ["attr", "clients.focus.floating"], // the focused-float probe (post-hand-back edge guard)
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -558,7 +587,8 @@ describe("floatFocus (hc_focus port)", () => {
     test("(c) tiling layer + layer-switch succeeds -> TERMINATE: the float layer is focused, the float stays floating (no grab — Mod-f never un-floats)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000001"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000001."],
+            ["^attr clients\\.0x2000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x2000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
@@ -567,7 +597,8 @@ describe("floatFocus (hc_focus port)", () => {
         await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"], // pre-scan
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x2000001.tag"],
             ["attr", "clients.0x2000001.floating"],
             ["attr", "clients.0x2000001.minimized"],
             ["attr", "tags.focus.floating_focused"], // ff read
@@ -579,7 +610,8 @@ describe("floatFocus (hc_focus port)", () => {
     test("(f) layer-switch succeeds + populated frame -> terminate, the float stays", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000001"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000001."],
+            ["^attr clients\\.0x2000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x2000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
@@ -589,7 +621,8 @@ describe("floatFocus (hc_focus port)", () => {
         await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x2000001.tag"],
             ["attr", "clients.0x2000001.floating"],
             ["attr", "clients.0x2000001.minimized"],
             ["attr", "tags.focus.floating_focused"],
@@ -600,7 +633,8 @@ describe("floatFocus (hc_focus port)", () => {
     test("(g) switch fails + max layout -> float on, place centered in frame, foreground, vacated frame removed, fit guard, algorithm max — ONE lock", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000003"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000003."],
+            ["^attr clients\\.0x2000003\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000003\\.floating$", "0", "false"], // no visible float
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""], // re-entry fails
@@ -615,7 +649,8 @@ describe("floatFocus (hc_focus port)", () => {
         await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x2000003.tag"],
             ["attr", "clients.0x2000003.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -650,7 +685,8 @@ describe("floatFocus (hc_focus port)", () => {
     test("(g) vacated frame still holds clients -> no remove", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000003"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000003."],
+            ["^attr clients\\.0x2000003\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
@@ -678,7 +714,8 @@ describe("floatFocus (hc_focus port)", () => {
     test("(g) non-max layout -> no lift, just the algorithm=max tail", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000004"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000004."],
+            ["^attr clients\\.0x2000004\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000004\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused on$", "1", ""],
@@ -687,7 +724,8 @@ describe("floatFocus (hc_focus port)", () => {
         await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x2000004.tag"],
             ["attr", "clients.0x2000004.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "tags.focus.floating_focused", "on"], // fails
@@ -699,7 +737,8 @@ describe("floatFocus (hc_focus port)", () => {
     test("(h) floating_focused TRUE -> UNFOCUS the layer, the float preserved (closing out is Mod-x's register)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000005"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000005."],
+            ["^attr clients\\.0x2000005\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000005\\.floating$", "0", "true"],
             ["^attr clients\\.0x2000005\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -707,7 +746,8 @@ describe("floatFocus (hc_focus port)", () => {
         await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x2000005.tag"],
             ["attr", "clients.0x2000005.floating"],
             ["attr", "clients.0x2000005.minimized"],
             ["attr", "tags.focus.floating_focused"],
@@ -720,14 +760,16 @@ describe("floatFocus (hc_focus port)", () => {
     test("(h) no focused window and no visible float -> unfocus the layer after the pre-scan", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x2000007"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x2000007."],
+            ["^attr clients\\.0x2000007\\.tag$", "0", "work"],
             ["^attr clients\\.0x2000007\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
         ]);
         await floatFocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x2000007.tag"],
             ["attr", "clients.0x2000007.floating"],
             ["attr", "tags.focus.floating_focused"],
             // UNFOCUS the layer: no wid needed — the layer write only
@@ -748,7 +790,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
     test("float focused + EMPTY focused frame -> un-float the focused float into it", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x1000002"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000002."],
+            ["^attr clients\\.0x1000002\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000002\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000002\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -758,7 +801,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
         await floatUnfocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000002.tag"],
             ["attr", "clients.0x1000002.floating"],
             ["attr", "clients.0x1000002.minimized"],
             ["attr", "tags.focus.floating_focused"],
@@ -771,7 +815,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
     test("float focused + populated frame -> focus the tiling layer (float untouched)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x1000002"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000002."],
+            ["^attr clients\\.0x1000002\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000002\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000002\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "true"],
@@ -781,7 +826,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
         await floatUnfocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000002.tag"],
             ["attr", "clients.0x1000002.floating"],
             ["attr", "clients.0x1000002.minimized"],
             ["attr", "tags.focus.floating_focused"],
@@ -794,7 +840,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
     test("tiling focused + visible float -> single-write companion (pre-set corner rect from the tiled content geometry, then float-on), then recall (switch + jumpto + place centered)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x1000001"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000001."],
+            ["^attr clients\\.0x1000001\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000001\\.floating$", "0", "true"],
             ["^attr clients\\.0x1000001\\.minimized$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
@@ -817,7 +864,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
         await floatUnfocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000001.tag"],
             ["attr", "clients.0x1000001.floating"],
             ["attr", "clients.0x1000001.minimized"],
             ["attr", "tags.focus.floating_focused"],
@@ -853,7 +901,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
     test("tiling focused + no float -> companion-only: single write, the tiling window floats to the corner and takes the float session", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x1000003"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000003."],
+            ["^attr clients\\.0x1000003\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000003\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr clients\\.focus\\.winid$", "0", "0x1000003"],
@@ -872,7 +921,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
         await floatUnfocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000003.tag"],
             ["attr", "clients.0x1000003.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"], // the companion capture
@@ -898,7 +948,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
     test("companion smaller than a quarter screen -> keeps its adopted size (single write, corner move only — shrink-only, never grow)", async () => {
         scenario([
             ["^attr tags\\.focus\\.name$", "0", "work"],
-            ["^list_clients --tag=work$", "0", "0x1000009"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n1 children:\\n  0x1000009."],
+            ["^attr clients\\.0x1000009\\.tag$", "0", "work"],
             ["^attr clients\\.0x1000009\\.floating$", "0", "false"],
             ["^attr tags\\.focus\\.floating_focused$", "0", "false"],
             ["^attr clients\\.focus\\.winid$", "0", "0x1000009"],
@@ -917,7 +968,8 @@ describe("floatUnfocus ($Mod-x port)", () => {
         await floatUnfocus();
         expect(log()).toEqual([
             ["attr", "tags.focus.name"],
-            ["list_clients", "--tag=work"],
+            ["attr", "clients."],
+                ["attr", "clients.0x1000009.tag"],
             ["attr", "clients.0x1000009.floating"],
             ["attr", "tags.focus.floating_focused"],
             ["attr", "clients.focus.winid"],

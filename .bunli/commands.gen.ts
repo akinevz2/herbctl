@@ -6,8 +6,9 @@ import { createGeneratedHelpers, registerGeneratedStore } from '@bunli/core'
 
 import Add from '../src/commands/add.js'
 import Close from '../src/commands/close.js'
+import Completions from '../src/commands/completions.js'
+import Find from '../src/commands/find.js'
 import Float from '../src/commands/float.js'
-import Focus from '../src/commands/focus.js'
 import Frame from '../src/commands/frame.js'
 import Jump from '../src/commands/jump.js'
 import Move from '../src/commands/move.js'
@@ -18,18 +19,20 @@ import Run from '../src/commands/run.js'
 import Shift from '../src/commands/shift.js'
 import Spawn from '../src/commands/spawn.js'
 import Split from '../src/commands/split.js'
+import Tagspace from '../src/commands/tagspace.js'
 import Tile from '../src/commands/tile.js'
 import Toggle from '../src/commands/toggle.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['add', 'close', 'float', 'focus', 'frame', 'jump', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tile', 'toggle'] as const
+const names = ['add', 'close', 'completions', 'find', 'float', 'frame', 'jump', 'move', 'new', 'open', 'rotate-tree', 'run', 'shift', 'spawn', 'split', 'tagspace', 'tile', 'toggle'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
   'add': Add,
   'close': Close,
+  'completions': Completions,
+  'find': Find,
   'float': Float,
-  'focus': Focus,
   'frame': Frame,
   'jump': Jump,
   'move': Move,
@@ -40,6 +43,7 @@ const modules: Record<GeneratedNames, Command<any>> = {
   'shift': Shift,
   'spawn': Spawn,
   'split': Split,
+  'tagspace': Tagspace,
   'tile': Tile,
   'toggle': Toggle
 } as const
@@ -47,16 +51,34 @@ const modules: Record<GeneratedNames, Command<any>> = {
 const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
   'add': {
       name: 'add',
-      description: 'Allocate, focus stays: frame, terminal, notification, tagspace',
+      description: 'add <frame|terminal|notification|tagspace> — focus stays',
       options: {
-        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1756,"end":1761,"loc":{"start":{"line":47,"column":43,"index":1756},"end":{"line":47,"column":48,"index":1761}},"value":false}}]}, validator: '(val) => true' }
+        'active': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'alias to `herbctl new <object>` (focus comes to the new object)', short: 'a', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1750,"end":1755,"loc":{"start":{"line":47,"column":43,"index":1750},"end":{"line":47,"column":48,"index":1755}},"value":false}}]}, validator: '(val) => true' }
       },
       path: './src/commands/add'
     },
   'close': {
       name: 'close',
-      description: 'close <or-remove|window|tiling|xkill|frame|tagspace [name]|notification>',
+      description: 'close <or-remove|window|tiling|xkill|frame|tagspace|notification>',
       path: './src/commands/close'
+    },
+  'completions': {
+      name: 'completions',
+      description: 'completions <bash|zsh|fish|internal>',
+      options: {
+        'bash': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'print the bash completion script', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3580,"end":3585,"loc":{"start":{"line":96,"column":41,"index":3580},"end":{"line":96,"column":46,"index":3585}},"value":false}}]}, validator: '(val) => true' },
+        'zsh': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'print the zsh completion script', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3737,"end":3742,"loc":{"start":{"line":100,"column":40,"index":3737},"end":{"line":100,"column":45,"index":3742}},"value":false}}]}, validator: '(val) => true' },
+        'fish': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'print the fish completion script', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3894,"end":3899,"loc":{"start":{"line":104,"column":41,"index":3894},"end":{"line":104,"column":46,"index":3899}},"value":false}}]}, validator: '(val) => true' },
+        'internal': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'print the completion data as JSON', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":4056,"end":4061,"loc":{"start":{"line":108,"column":45,"index":4056},"end":{"line":108,"column":50,"index":4061}},"value":false}}]}, validator: '(val) => true' },
+        'words': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'internal: the completed words so far (repeatable)', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":4224,"end":4226,"loc":{"start":{"line":112,"column":50,"index":4224},"end":{"line":112,"column":52,"index":4226}},"elements":[]}}]}, validator: '(val) => true' },
+        'prefix': { type: 'z.string.optional', required: false, hasDefault: false, description: 'internal: the word being completed', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
+      },
+      path: './src/commands/completions'
+    },
+  'find': {
+      name: 'find',
+      description: 'find <string> — a tag, else client titles',
+      path: './src/commands/find'
     },
   'float': {
       name: 'float',
@@ -70,17 +92,12 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       },
       path: './src/commands/float'
     },
-  'focus': {
-      name: 'focus',
-      description: 'focus <frame|tagspace [name]|terminal>',
-      path: './src/commands/focus'
-    },
   'frame': {
       name: 'frame',
-      description: 'frame <left|down|right|bottom|new|explode>',
+      description: 'frame [left|down|right|bottom|explode]',
       options: {
-        'cycle': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the cycle variant of the direction (frame right)', short: 'c', fileType: 'directory', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1502,"end":1507,"loc":{"start":{"line":40,"column":42,"index":1502},"end":{"line":40,"column":47,"index":1507}},"value":false}}]}, validator: '(val) => true' },
-        'shift': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the window-shift variant (frame down --shift)', short: 's', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1701,"end":1706,"loc":{"start":{"line":45,"column":42,"index":1701},"end":{"line":45,"column":47,"index":1706}},"value":false}}]}, validator: '(val) => true' }
+        'cycle': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the cycle variant of the direction (frame right)', short: 'c', fileType: 'directory', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1770,"end":1775,"loc":{"start":{"line":46,"column":42,"index":1770},"end":{"line":46,"column":47,"index":1775}},"value":false}}]}, validator: '(val) => true' },
+        'shift': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'the window-shift variant of the direction', short: 's', fileType: 'directory', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1969,"end":1974,"loc":{"start":{"line":51,"column":42,"index":1969},"end":{"line":51,"column":47,"index":1974}},"value":false}}]}, validator: '(val) => true' }
       },
       path: './src/commands/frame'
     },
@@ -91,7 +108,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'move': {
       name: 'move',
-      description: 'Move between layers',
+      description: 'move between the layers',
       options: {
         'wid': { type: 'z.string.optional', required: false, hasDefault: false, description: 'Move THIS window instead of the focused one', short: 'w', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'to-float': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Float the window ON first (idempotent when already floating)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1478,"end":1483,"loc":{"start":{"line":31,"column":43,"index":1478},"end":{"line":31,"column":48,"index":1483}},"value":false}}]}, validator: '(val) => true' },
@@ -102,31 +119,31 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'new': {
       name: 'new',
-      description: 'Allocate and focus: frame, terminal, notification, tagspace',
+      description: 'new <frame|terminal|notification|tagspace> — focus follows',
       path: './src/commands/new'
     },
   'open': {
       name: 'open',
-      description: 'rofi directory browser: terminal in a dir, $EDITOR a file',
+      description: 'rofi directory browser',
       options: {
-        'no-hidden': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'exclude hidden entries (shown by default)', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3284,"end":3289,"loc":{"start":{"line":90,"column":48,"index":3284},"end":{"line":90,"column":53,"index":3289}},"value":false}}]}, validator: '(val) => true' }
+        'no-hidden': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'exclude hidden entries (shown by default)', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3249,"end":3254,"loc":{"start":{"line":90,"column":48,"index":3249},"end":{"line":90,"column":53,"index":3254}},"value":false}}]}, validator: '(val) => true' }
       },
       path: './src/commands/open'
     },
   'rotate-tree': {
       name: 'rotate-tree',
-      description: 'Rotate the tree',
+      description: 'rotate the frame tree',
       options: {
-        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Force the focus/cycle branch (never rotate)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":728,"end":733,"loc":{"start":{"line":17,"column":42,"index":728},"end":{"line":17,"column":47,"index":733}},"value":false}}]}, validator: '(val) => true' },
-        'smart': { type: 'z.preprocess', required: true, hasDefault: false, description: 'Rotate frame_count >= N frames, cycle backwards below (default 3)', schema: {"type":"zod","method":"preprocess","args":[{"type":"unknown","raw":{"type":"ArrowFunctionExpression","start":921,"end":950,"loc":{"start":{"line":23,"column":16,"index":921},"end":{"line":23,"column":45,"index":950}},"id":null,"generator":false,"async":false,"params":[{"type":"Identifier","start":922,"end":923,"loc":{"start":{"line":23,"column":17,"index":922},"end":{"line":23,"column":18,"index":923},"identifierName":"v"},"name":"v"}],"body":{"type":"ConditionalExpression","start":929,"end":949,"loc":{"start":{"line":23,"column":24,"index":929},"end":{"line":23,"column":44,"index":949}},"test":{"type":"BinaryExpression","start":929,"end":941,"loc":{"start":{"line":23,"column":24,"index":929},"end":{"line":23,"column":36,"index":941}},"left":{"type":"Identifier","start":929,"end":930,"loc":{"start":{"line":23,"column":24,"index":929},"end":{"line":23,"column":25,"index":930},"identifierName":"v"},"name":"v"},"operator":"===","right":{"type":"StringLiteral","start":935,"end":941,"loc":{"start":{"line":23,"column":30,"index":935},"end":{"line":23,"column":36,"index":941}},"extra":{"rawValue":"true","raw":"\"true\""},"value":"true"}},"consequent":{"type":"NumericLiteral","start":944,"end":945,"loc":{"start":{"line":23,"column":39,"index":944},"end":{"line":23,"column":40,"index":945}},"extra":{"rawValue":3,"raw":"3"},"value":3},"alternate":{"type":"Identifier","start":948,"end":949,"loc":{"start":{"line":23,"column":43,"index":948},"end":{"line":23,"column":44,"index":949},"identifierName":"v"},"name":"v"},"extra":{"parenthesized":true,"parenStart":928}}}},{"type":"zod","method":"optional","args":[]}]}, validator: '(val) => true' }
+        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'Force the focus/cycle branch (never rotate)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":734,"end":739,"loc":{"start":{"line":17,"column":42,"index":734},"end":{"line":17,"column":47,"index":739}},"value":false}}]}, validator: '(val) => true' },
+        'smart': { type: 'z.preprocess', required: true, hasDefault: false, description: 'Rotate frame_count >= N frames, cycle backwards below (default 3)', schema: {"type":"zod","method":"preprocess","args":[{"type":"unknown","raw":{"type":"ArrowFunctionExpression","start":927,"end":956,"loc":{"start":{"line":23,"column":16,"index":927},"end":{"line":23,"column":45,"index":956}},"id":null,"generator":false,"async":false,"params":[{"type":"Identifier","start":928,"end":929,"loc":{"start":{"line":23,"column":17,"index":928},"end":{"line":23,"column":18,"index":929},"identifierName":"v"},"name":"v"}],"body":{"type":"ConditionalExpression","start":935,"end":955,"loc":{"start":{"line":23,"column":24,"index":935},"end":{"line":23,"column":44,"index":955}},"test":{"type":"BinaryExpression","start":935,"end":947,"loc":{"start":{"line":23,"column":24,"index":935},"end":{"line":23,"column":36,"index":947}},"left":{"type":"Identifier","start":935,"end":936,"loc":{"start":{"line":23,"column":24,"index":935},"end":{"line":23,"column":25,"index":936},"identifierName":"v"},"name":"v"},"operator":"===","right":{"type":"StringLiteral","start":941,"end":947,"loc":{"start":{"line":23,"column":30,"index":941},"end":{"line":23,"column":36,"index":947}},"extra":{"rawValue":"true","raw":"\"true\""},"value":"true"}},"consequent":{"type":"NumericLiteral","start":950,"end":951,"loc":{"start":{"line":23,"column":39,"index":950},"end":{"line":23,"column":40,"index":951}},"extra":{"rawValue":3,"raw":"3"},"value":3},"alternate":{"type":"Identifier","start":954,"end":955,"loc":{"start":{"line":23,"column":43,"index":954},"end":{"line":23,"column":44,"index":955},"identifierName":"v"},"name":"v"},"extra":{"parenthesized":true,"parenStart":934}}}},{"type":"zod","method":"optional","args":[]}]}, validator: '(val) => true' }
       },
       path: './src/commands/rotate-tree'
     },
   'run': {
       name: 'run',
-      description: 'palette: bare = helper scripts, <command> = completions',
+      description: 'the command palette',
       options: {
-        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'command palette: extra name prefixes (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":13084,"end":13086,"loc":{"start":{"line":308,"column":50,"index":13084},"end":{"line":308,"column":52,"index":13086}},"elements":[]}}]}, validator: '(val) => true' }
+        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'command palette: extra name prefixes (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":12762,"end":12764,"loc":{"start":{"line":294,"column":50,"index":12762},"end":{"line":294,"column":52,"index":12764}},"elements":[]}}]}, validator: '(val) => true' }
       },
       path: './src/commands/run'
     },
@@ -137,7 +154,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'spawn': {
       name: 'spawn',
-      description: 'Spawn client with rule',
+      description: 'spawn a client with a rule',
       options: {
         'class': { type: 'z.string.optional', required: false, hasDefault: false, description: 'WM_CLASS match criterion', short: 'c', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'instance': { type: 'z.string.optional', required: false, hasDefault: false, description: 'WM_INSTANCE match criterion', short: 'i', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
@@ -145,11 +162,11 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
         'tag': { type: 'z.string.optional', required: false, hasDefault: false, description: 'tag NAME to place the window on', short: 'a', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'floating': { type: 'z.enum.optional', required: false, hasDefault: false, description: 'floating consequence (center via --center)', short: 'f', enumValues: ["on","off"], schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
         'switchtag': { type: 'z.enum.optional', required: false, hasDefault: false, description: 'follow the window to its tag', short: 's', enumValues: ["on","off"], schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'focus the new client', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1918,"end":1923,"loc":{"start":{"line":43,"column":42,"index":1918},"end":{"line":43,"column":47,"index":1923}},"value":false}}]}, validator: '(val) => true' },
-        'center': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float + focus + follow + center the window (guard-dialog preset)', short: 'C', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2078,"end":2083,"loc":{"start":{"line":47,"column":43,"index":2078},"end":{"line":47,"column":48,"index":2083}},"value":false}}]}, validator: '(val) => true' },
+        'focus': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'focus the new client', short: 'F', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":1922,"end":1927,"loc":{"start":{"line":43,"column":42,"index":1922},"end":{"line":43,"column":47,"index":1927}},"value":false}}]}, validator: '(val) => true' },
+        'center': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'float + focus + follow + center the window (guard-dialog preset)', short: 'C', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2082,"end":2087,"loc":{"start":{"line":47,"column":43,"index":2082},"end":{"line":47,"column":48,"index":2087}},"value":false}}]}, validator: '(val) => true' },
         'cmd': { type: 'z.string.min.optional', required: false, hasDefault: false, description: 'spawn via shell from a STRING (use when the command has flag-like args; \'--\' positional can\'t shield dash tokens)', min: 1, minLength: 1, schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
-        'urgent': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'terminal: raise the urgent hint post-attach', short: 'u', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2520,"end":2525,"loc":{"start":{"line":56,"column":43,"index":2520},"end":{"line":56,"column":48,"index":2525}},"value":false}}]}, validator: '(val) => true' },
-        'no-distract': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'terminal: the terminal does NOT take focus on attach', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2710,"end":2715,"loc":{"start":{"line":60,"column":50,"index":2710},"end":{"line":60,"column":55,"index":2715}},"value":false}}]}, validator: '(val) => true' },
+        'urgent': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'terminal: raise the urgent hint post-attach', short: 'u', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2524,"end":2529,"loc":{"start":{"line":56,"column":43,"index":2524},"end":{"line":56,"column":48,"index":2529}},"value":false}}]}, validator: '(val) => true' },
+        'no-distract': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'terminal: the terminal does NOT take focus on attach', short: 'n', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":2714,"end":2719,"loc":{"start":{"line":60,"column":50,"index":2714},"end":{"line":60,"column":55,"index":2719}},"value":false}}]}, validator: '(val) => true' },
         'directory': { type: 'z.string.optional', required: false, hasDefault: false, description: 'terminal: cd into <dir> first (a leading ~ is expanded)', short: 'd', fileType: 'directory', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' }
       },
       path: './src/commands/spawn'
@@ -159,9 +176,14 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       description: 'split <new|launch>',
       path: './src/commands/split'
     },
+  'tagspace': {
+      name: 'tagspace',
+      description: 'tagspace [name] — enter, allocating when missing',
+      path: './src/commands/tagspace'
+    },
   'tile': {
       name: 'tile',
-      description: 'Tile into empty frame',
+      description: 'tile into the empty frame',
       path: './src/commands/tile'
     },
   'toggle': {

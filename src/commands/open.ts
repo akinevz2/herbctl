@@ -85,7 +85,7 @@ async function browse(
 
 export default defineCommand({
     name: "open" as never,
-    description: "rofi directory browser: terminal in a dir, $EDITOR a file",
+    description: "rofi directory browser",
     options: {
         "no-hidden": option(z.boolean().default(false), {
             description: "exclude hidden entries (shown by default)", short: "n",

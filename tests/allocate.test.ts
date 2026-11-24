@@ -184,7 +184,9 @@ describe("tagspace allocation (hlwm tags)", () => {
     test("close tagspace: clients move to the first other tag, then merge", async () => {
         const rows: Array<[string, string, string]> = [
             ["attr tags.focus.name", "0", "work"],
-            ["list_clients --tag=work", "0", "0x1\\n0x2"],
+            ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n2 children:\\n  0x1.\\n  0x2."],
+            ["^attr clients\\.0x1\\.tag$", "0", "work"],
+            ["^attr clients\\.0x2\\.tag$", "0", "work"],
         ];
         TAG_NAMES.forEach((n, i) =>
             rows.push([`attr tags\\.${i}\\.name$`, "0", n])),

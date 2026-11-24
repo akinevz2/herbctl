@@ -159,13 +159,34 @@ export async function rotateTree(mode: RotateTreeMode = "auto", threshold = 3): 
     return true;
 }
 
-/** $ModShift-b (autostart): with >1 window in the focused frame, split
- *  a bottom frame and shift the window down into it. */
+/** $ModShift-b (autostart): the --shift machine of frame down AND
+ *  frame bottom — with >1 window in the focused frame, split a bottom
+ *  frame and shift the window down into it. */
 export async function splitDown(): Promise<void> {
     await hc(
         "or", ".",
         "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
         ",", "chain", "!", "split", "bottom", "!", "shift", "down",
+    );
+}
+
+/** frame left --shift: with >1 window in the focused frame, split a
+ *  left frame and shift the window left into it. */
+export async function splitLeftShift(): Promise<void> {
+    await hc(
+        "or", ".",
+        "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
+        ",", "chain", "!", "split", "left", "!", "shift", "left",
+    );
+}
+
+/** frame right --shift: with >1 window in the focused frame, split a
+ *  right frame and shift the window right into it. */
+export async function splitRightShift(): Promise<void> {
+    await hc(
+        "or", ".",
+        "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
+        ",", "chain", "!", "split", "right", "!", "shift", "right",
     );
 }
 

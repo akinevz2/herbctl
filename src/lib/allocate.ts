@@ -111,12 +111,6 @@ export async function freeTagspace(name?: string): Promise<string | null> {
     return tag;
 }
 
-/** enter a tagspace (the focus verb). */
-export async function focusTagspace(name?: string): Promise<boolean> {
-    const tag = name ?? (await freeTagspaceName());
-    return (await hc("use", tag)) !== null;
-}
-
 /** allocate a frame. focus=true cycles into the new frame (the new
  *  semantics — the migrated newFrame); focus=false splits and leaves
  *  focus on the current client (the add semantics — hlwm's bare split
@@ -178,13 +172,4 @@ export async function closeFrame(): Promise<void> {
         return;
     }
     await hc("or", ",", "close_and_remove", ",", "remove");
-}
-
-/** focus a terminal client: the most recently attached alacritty-class
- *  client is jumped to (nothing focused matches -> no-op, fail-soft). */
-export async function focusTerminal(): Promise<boolean> {
-    const wids = await listClients();
-    if (wids.length === 0) return false;
-    const r = await hc("chain", ",", "jumpto", wids[wids.length - 1]);
-    return r !== null;
 }

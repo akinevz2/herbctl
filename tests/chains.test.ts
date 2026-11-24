@@ -530,12 +530,41 @@ describe("CLI verbs", () => {
         const run = (positional: string[], flags: Record<string, boolean> = {}) =>
             (frame as unknown as { handler: (i: never) => Promise<void> })
                 .handler({ positional, flags } as never);
+        await run([]);
+        expect(log().at(-1)).toEqual([
+            "or",
+            ".", "and", ",", "compare", "tags.focus.frame_count", "gt", "1",
+            ",", "cycle_frame", "-1",
+            ".", "chain", "!", "split", "explode", "!", "cycle_frame",
+        ]);
         await run(["right"], { cycle: true });
-        expect(log()).toEqual([["chain", ",", "split", "right", "0.5", ",", "cycle_frame"]]);
+        expect(log().at(-1)).toEqual([["chain", ",", "split", "right", "0.5", ",", "cycle_frame"]].at(0));
         await run(["left"]);
-        expect(log()).not.toEqual([["chain", ",", "split", "right", "0.5", ",", "cycle_frame"]]);
-        await expect(run(["right"], { shift: true }))
-            .rejects.toThrow("--shift only combines with 'down'");
+        expect(log().at(-1)).not.toEqual([["chain", ",", "split", "right", "0.5", ",", "cycle_frame"]].at(0));
+        await run(["down"], { shift: true });
+        expect(log().at(-1)).toEqual([
+            "or",
+            ".", "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
+            ",", "chain", "!", "split", "bottom", "!", "shift", "down",
+        ]);
+        await run(["left"], { shift: true });
+        expect(log().at(-1)).toEqual([
+            "or",
+            ".", "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
+            ",", "chain", "!", "split", "left", "!", "shift", "left",
+        ]);
+        await run(["right"], { shift: true });
+        expect(log().at(-1)).toEqual([
+            "or",
+            ".", "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
+            ",", "chain", "!", "split", "right", "!", "shift", "right",
+        ]);
+        await run(["bottom"], { shift: true });
+        expect(log().at(-1)).toEqual([
+            "or",
+            ".", "and", ",", "compare", "tags.focus.curframe_wcount", "gt", "1",
+            ",", "chain", "!", "split", "bottom", "!", "shift", "down",
+        ]);
     });
 
     test("unknown directions fail with the usage error", async () => {

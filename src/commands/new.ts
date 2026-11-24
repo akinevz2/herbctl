@@ -41,7 +41,7 @@ const directoryFlag = () =>
 
 export default defineCommand({
     name: "new" as never,
-    description: "Allocate and focus: frame, terminal, notification, tagspace",
+    description: "new <frame|terminal|notification|tagspace> — focus follows",
     options: { on: onFlag(), directory: directoryFlag() },
     handler: async ({ flags, positional }) => {
         const object = positional[0];

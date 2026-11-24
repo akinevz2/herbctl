@@ -100,19 +100,28 @@ export async function setAttr(
 }
 
 /**
- * herbstclient list_clients. Options: { tag, frame } — tag is a tag
- * NAME, frame is the FLAT frame index (an object path is silently
- * ignored by hlwm there and would return ALL tag clients).
+ * The managed clients, read through herbstutil's attr-tree interface
+ * (list_clients is brittle and unstable — the object tree is the
+ * documented surface): `attr clients.` yields the window ids as the
+ * object children; a `tag` filter reads each child's `clients.<wid>.tag`
+ * leaf. Children come in hlwm's object order (the attr tree order),
+ * NOT the WM manage order of list_clients. Options: { tag } — tag is a
+ * tag NAME.
  */
 export async function listClients(
-    { tag, frame }: { tag?: string; frame?: string } = {},
+    { tag }: { tag?: string } = {},
 ): Promise<string[]> {
-    const args = ["list_clients"];
-    if (tag !== undefined) args.push(`--tag=${tag}`);
-    if (frame !== undefined) args.push(`--frame=${frame}`);
-    const r = await hc(...args);
-    if (r === null) return [];
-    return r.stdout.split("\n").map((s) => s.trim()).filter(Boolean);
+    const tree = await attrTree("clients.");
+    if (tree === null) return [];
+    const wids = tree.children;
+    if (tag === undefined) return wids;
+    const tagged: string[] = [];
+    for (const wid of wids) {
+        if ((await attrValue<string>(`clients.${wid}.tag`)) === tag) {
+            tagged.push(wid);
+        }
+    }
+    return tagged;
 }
 
 /**
@@ -128,7 +137,7 @@ export async function attrValue<T = string | number | boolean>(path: string): Pr
 }
 
 /**
- * herbstclient list_clients --tag=NAME → wids (WM order).
+ * The clients of one tag → wids (the attr-tree children order).
  */
 export async function listClientsByTag(tag: string): Promise<string[]> {
     return listClients({ tag });

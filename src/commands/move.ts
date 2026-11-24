@@ -21,7 +21,7 @@ import { layerMods, layerOptions, withLayerMods } from "../lib/layers.js";
 
 export default defineCommand({
     name: "move" as never,
-    description: "Move between layers",
+    description: "move between the layers",
     options: {
         wid: option(z.string().optional(), {
             description: "Move THIS window instead of the focused one",

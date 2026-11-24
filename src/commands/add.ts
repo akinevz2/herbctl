@@ -42,7 +42,7 @@ const directoryFlag = () =>
 
 export default defineCommand({
     name: "add" as never,
-    description: "Allocate, focus stays: frame, terminal, notification, tagspace",
+    description: "add <frame|terminal|notification|tagspace> — focus stays",
     options: {
         active: option(z.boolean().default(false), {
             description: "alias to `herbctl new <object>` (focus comes to the new object)",
