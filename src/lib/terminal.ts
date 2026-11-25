@@ -35,6 +35,7 @@
 // machinery: that is for graphical apps.
 import { existsSync, statSync } from "node:fs";
 import { attrValue, hc, listClients, setAttr } from "./hc.js";
+import { decoMargins } from "./geometry.js";
 import { spawnEnv } from "./rofi.js";
 
 /** Parse a hlwm WxH+X+Y geometry string. Null when malformed. */
@@ -76,33 +77,29 @@ function parseGeom(
  * verbatim, never re-clamped.
  */
 export async function fullHeightTarget(): Promise<string | null> {
-    const themeDeco = async (): Promise<{ title: number; border: number }> => {
-        const leaf = async (floating: string, global: string): Promise<number> =>
-            (await attrValue<number>(floating)) ??
-            (await attrValue<number>(global)) ?? 0;
-        return {
-            title: await leaf("theme.floating.title_height", "theme.title_height"),
-            border: await leaf("theme.floating.border_width", "theme.border_width"),
-        };
-    };
-    const [geo, deco] = await Promise.all([
+    const [geo, margins] = await Promise.all([
         attrValue<string>(
             "tags.focus.tiling.focused_frame.content_geometry",
         ),
-        themeDeco(),
+        // The REAL deco stack — theme.floating's padding_*, inner_width,
+        // outer_width, title_height + title_depth (verified against the
+        // live X frame extents: 7,7,36,7 on this config). The old
+        // title + 2*border pad (28 vs the real 43) put the terminal's
+        // outer frame 24px past the monitor bottom — the too-tall
+        // regression.
+        decoMargins(""),
     ]);
     const rect = parseGeom(geo ?? "");
     if (rect === null) return null;
+    const [L, T, R, B] = margins;
     // floating_geometry positions the window's CONTENT; the WM draws
-    // the decoration OUTWARD from it (title bar up top, borders
-    // around). The outer frame lands exactly on the frame's content
-    // rect: content y = frame.y + title + border, content h =
-    // frame.h - pad, half the width centered (border-adjusted).
-    const pad = deco.title + 2 * deco.border;
-    const w = Math.max(Math.floor(rect.w / 2) - deco.border, 1);
-    const h = Math.max(rect.h - pad, 1);
+    // the decoration OUTWARD from it. The outer frame lands exactly on
+    // the frame's content rect: content y = frame.y + T, content h =
+    // frame.h - T - B, half the width centered (deco-adjusted).
+    const w = Math.max(Math.floor(rect.w / 2) - L - R, 1);
+    const h = Math.max(rect.h - T - B, 1);
     const x = rect.x + Math.floor((rect.w - w) / 2);
-    const y = rect.y + deco.title + deco.border;
+    const y = rect.y + T;
     return `${w}x${h}+${x}+${y}`;
 }
 

@@ -20,15 +20,19 @@ import { fullHeightTarget, launchTerminal } from "./terminal.js";
 import { waitHealthy, type TrackState } from "./track.js";
 import { spawnDetached } from "./rule-spawn.js";
 
-/** Bring a window onto a tag and focus it there. THIS hlwm's
- *  `jumpto` FOLLOWS the window (view + focus move to the window's
- *  own tag — it never carries the window over): the relocate
- *  procedure is focus → `move <tag>` (moves the FOCUSED window) →
- *  `use <tag>` to follow. */
+/** Bring a window onto a tag and focus it there. ONE chained spawn
+ *  under lock — focus → `move <tag>` → `use <tag>` atomically: the
+ *  view never rests on an intermediate state, so the user is never
+ *  stranded without the orchestrator between the steps. (THIS hlwm's
+ *  `jumpto` FOLLOWS the window: it never carries the window over.) */
 export async function bringToTag(wid: string, tag: string): Promise<void> {
-    await hc("jumpto", wid);
-    await hc("move", tag);
-    await hc("use", tag);
+    await hc(
+        "chain", ",", "lock",
+        ",", "jumpto", wid,
+        ",", "move", tag,
+        ",", "use", tag,
+        ",", "unlock",
+    );
 }
 
 /** Float the orchestrator OVER the experiment: floating layer, no

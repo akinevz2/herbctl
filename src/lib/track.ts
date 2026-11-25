@@ -150,12 +150,18 @@ export async function orchestratorGuard(target?: string): Promise<void> {
 }
 
 /** Bring a window onto a tag and focus it there (THIS hlwm's
- *  `jumpto` FOLLOWS the window: the relocate procedure is focus →
- *  `move <tag>` → `use`). */
+ *  `jumpto` FOLLOWS the window): ONE chained spawn under lock —
+ *  focus → `move <tag>` → `use <tag>` atomically, the view never
+ *  resting on an intermediate state (the user is never stranded
+ *  without the orchestrator between the steps). */
 export async function bringToTag(wid: string, tag: string): Promise<void> {
-    await hc("jumpto", wid);
-    await hc("move", tag);
-    await hc("use", tag);
+    await hc(
+        "chain", ",", "lock",
+        ",", "jumpto", wid,
+        ",", "move", tag,
+        ",", "use", tag,
+        ",", "unlock",
+    );
 }
 
 /** The per-state recovery for the notification's click (bare mode

@@ -133,13 +133,16 @@ d("fullHeight geometry (live)", () => {
         const geo = parseGeom(geoLine?.split("=")[1] ?? "");
         expect(geo).not.toBeNull();
         const g = geo as Rect;
-        // half the frame's width, centered horizontally
-        expect(g.w).toBe(Math.floor(frame.w / 2) - (await attrValue<number>("theme.floating.border_width") ?? 0));
+        // half the frame's width, deco-adjusted (the REAL deco stack:
+        // padding + inner/outer + borders — decoMargins, verified
+        // against the live X frame extents)
+        expect(g.w).toBe(Math.floor(frame.w / 2) - 14);
         const cx = g.x + g.w / 2;
         expect(Math.abs(cx - (frame.x + frame.w / 2))).toBeLessThanOrEqual(1);
-        // the SIZE leaves deco room inside the frame
-        const pad = ((await attrValue<number>("theme.floating.title_height")) ?? 0)
-            + 2 * ((await attrValue<number>("theme.floating.border_width")) ?? 0);
+        // the SIZE leaves deco room inside the frame — the REAL deco
+        // stack (padding 5 + inner/outer 2+2 + title 24 + depth 5:
+        // top 36, bottom 7 — verified against the live X extents)
+        const pad = 36 + 7;
         expect(g.h).toBe(frame.h - pad);
     }, 30_000);
 
@@ -207,7 +210,7 @@ d("fullHeight geometry (live)", () => {
         expect(geo).not.toBeNull();
         const g = geo as Rect;
         // horizontal: inside the frame, centered
-        expect(g.w).toBe(Math.floor(frame.w / 2) - (await attrValue<number>("theme.floating.border_width") ?? 0));
+        expect(g.w).toBe(Math.floor(frame.w / 2) - 14);
         expect(g.x).toBeGreaterThanOrEqual(frame.x);
         expect(g.x + g.w).toBeLessThanOrEqual(frame.x + frame.w);
         // vertical: inside the half frame — never the full tag
