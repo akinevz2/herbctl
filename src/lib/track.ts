@@ -216,7 +216,16 @@ export class Notifier {
         for (let i = 0; i < sid.length; i += 1) {
             h = (h * 31 + sid.charCodeAt(i)) >>> 0;
         }
-        this.id = sid === "adhoc" ? "47111" : String(47200 + (h % 500));
+        // Two in-flight sessions must NEVER share the replace id (the
+        // parallel-notifications bug): the session hash gets a WIDE
+        // slot space (per-session ids stay STABLE across tracker
+        // restarts — the hash is deterministic), and the no-session
+        // "adhoc" case is keyed by the PROCESS (those restarts lose
+        // cross-turn replacement — acceptable: adhoc has no session
+        // identity to be stable against).
+        this.id = sid === "adhoc"
+            ? String(47200 + (Bun.pid % 999_000))
+            : String(47200 + (h % 999_000));
     }
     async open(state: TrackState, wid: string): Promise<void> {
         await this.close();
