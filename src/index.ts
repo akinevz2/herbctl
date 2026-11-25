@@ -8,45 +8,72 @@ import { name, version, description } from "../package.json" with { type: "json"
 import jump from "./commands/jump.js";
 import shift from "./commands/shift.js";
 import frame from "./commands/frame.js";
-import float from "./commands/float.js";
 import split from "./commands/split.js";
-import close from "./commands/close.js";
-import toggle from "./commands/toggle.js";
-import rotateTree from "./commands/rotate-tree.js";
+import removeCmd from "./commands/remove.js";
+import xkill from "./commands/xkill.js";
+import dismiss from "./commands/dismiss.js";
+import fullscreen from "./commands/fullscreen.js";
+import minimize from "./commands/minimize.js";
+import hiddenCmd from "./commands/hidden.js";
+// the fullscreen/minimize pair — TOP-LEVEL (reparented from
+// `toggle <fullscreen|minimize>`; the toggle dispatch surface retired)
+// the float family — TOP-LEVEL (reparented from `float <mode>`; the
+// geometry verbs' implementations are the lib command modules
+// themselves, the machines are thin wrappers)
+import yankCmd from "./commands/yank.js";
+import focusCmd from "./commands/focus.js";
+import unfocusCmd from "./commands/unfocus.js";
+import floatCmd from "./commands/float.js";
+import windowsCmd from "./commands/windows.js";
+import centerCmd from "./lib/center.js";
+import fitCmd from "./lib/fit.js";
+import cornerCmd from "./lib/corner.js";
+import resizeCmd from "./lib/verb-resize.js";
+import rotateTree from "./commands/rotate.js";
 import zoomToggle from "./commands/zoom.js";
 import reload from "./commands/reload.js";
 import tile from "./commands/tile.js";
-import spawn from "./commands/spawn.js";
+import once from "./commands/once.js";
 import move from "./commands/move.js";
 import expand from "./commands/expand.js";
 import openCmd from "./commands/open.js";
-import runCmd from "./commands/run.js";
+import terminalCmd from "./commands/terminal.js";
+import trackCmd from "./commands/track.js";
 import newCmd from "./commands/new.js";
 import addCmd from "./commands/add.js";
 import launchCmd from "./commands/launch.js";
-import tagspaceCmd from "./commands/tagspace.js";
+import tagCmd from "./commands/tag.js";
 import findCmd from "./commands/find.js";
 import completionsCmd from "./commands/completions.js";
 
 // convenience order (NOT alphabetical — see the sort removal below):
-// the palette, the completions and --command-tree all derive their
-// order from this array. Groups, in order:
+// the completions and --command-tree derive their order from this
+// array. Groups, in order:
 //   find / mutate / focus verbs, print-enumerate, add, remove,
 //   uncategorised (nouns) last.
 const COMMANDS = [
   // find + mutate/focus — the daily drivers
   findCmd,
   jump, shift, move,
-  frame, float, zoomToggle,
+  frame, zoomToggle,
   rotateTree, expand, tile,
-  toggle, tagspaceCmd,
+  fullscreen, minimize, hiddenCmd, tagCmd,
+  // the float family, top-level (the $Mod-x/-f machines and the
+  // geometry verbs; the geometry verbs auto-float a tiled focused
+  // window unless --floating-only)
+  yankCmd, focusCmd, unfocusCmd, floatCmd, windowsCmd,
+  centerCmd, fitCmd, cornerCmd, resizeCmd,
   reload,
-  // print / enumerate
-  openCmd, runCmd, completionsCmd,
-  // add
-  newCmd, addCmd, spawn, split, launchCmd,
-  // remove
-  close,
+  // the selector — the rofi WM command palette (`open`), and the
+  // $Mod-Enter terminal launcher (`terminal`)
+  openCmd, terminalCmd, completionsCmd,
+  // add / once — once and launch are the WM/agent automation
+  // surfaces; track is the orchestrator-observation surface
+  // (the --sentry mode owns the notification surface)
+  newCmd, addCmd, once, split, launchCmd,
+  trackCmd,
+  // remove — remove (the layer machines via flags), xkill, dismiss
+  removeCmd, xkill, dismiss,
 ];
 
 // The completion registry (lib/completions) fills ONCE at boot — the
@@ -57,23 +84,22 @@ import { type TailSpec, type ModeFlag } from "./lib/completions.js";
 import { getTree } from "./lib/completions.js";
 
 const VERB_TAILS: Record<string, TailSpec> = {
-    tagspace: { name: "name", required: true, description: "the tagspace name" },
-    close: { name: "name", required: false, description: "the tagspace to free (default: the focused one)" },
+    tag: { name: "name", required: true, description: "the tag name" },
 };
 
 const MODE_FLAGS: Record<string, Record<string, ModeFlag[]>> = {
-    close: {
-        tagspace: [{ flag: "--empty", description: "free EVERY empty tagspace at once" }],
+    tag: {
+        free: [{ flag: "--empty", description: "free EVERY empty tag at once" }],
     },
     new: {
         terminal: [
-            { flag: "--on", description: "attach on a remote tagspace (focus-stealing prevented)" },
+            { flag: "--on", description: "attach on a remote tag (focus-stealing prevented)" },
             { flag: "--directory", description: "cd into <dir> first" },
         ],
     },
     add: {
         terminal: [
-            { flag: "--on", description: "attach on a remote tagspace (focus-stealing prevented)" },
+            { flag: "--on", description: "attach on a remote tag (focus-stealing prevented)" },
             { flag: "--directory", description: "cd into <dir> first" },
         ],
     },
@@ -109,11 +135,10 @@ if (argv.includes("--command-tree")) {
   process.exit(0);
 }
 if (argv.length === 0) {
-  // Bare `herbctl` is the palette shorthand: the run verb IS the entry
-  // verb (its bare form is the command palette; Tab completes a single
-  // command via the completion palette). --help and `help` keep the
-  // root help.
-  process.argv = [process.argv[0], process.argv[1], "run"];
+  // Bare `herbctl` prints the root help (restored pre-1.8.0
+  // behavior; BACKLOG.md). The palette verb was removed — the WM
+  // surfaces (once, launch) are invoked explicitly by their callers.
+  process.argv = [process.argv[0], process.argv[1], "--help"];
 } else if (argv[0] === "help") {
   const rest = argv.slice(1);
   // cli.run() re-reads process.argv — rewrite it, not the slice

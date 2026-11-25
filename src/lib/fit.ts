@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { attr } from "./hc.js";
 import { fitTo, requireFloating } from "./geometry.js";
-import { layerMods, layerOptions, withLayerMods } from "./layers.js";
+import { autoFloatOrSkip, floatingOnlyOption, layerMods, layerOptions, withLayerMods } from "./layers.js";
 
 export default defineCommand({
     name: "fit" as never,
@@ -22,9 +22,11 @@ export default defineCommand({
             description: "Rectangle to fit within:",
             short: "t",
         }),
+        ...floatingOnlyOption,
         ...layerOptions,
     },
     handler: async ({ flags, positional }) => {
+        if ((await autoFloatOrSkip(flags)) === "skip") return;
         const wid = flags.wid || (await attr("clients.focus.winid"));
         if (!wid) return; // no focused client: fail soft like the other helpers
         const target = positional[0] === "frame" || positional[0] === "monitor"

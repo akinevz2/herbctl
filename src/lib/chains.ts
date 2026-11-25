@@ -11,7 +11,8 @@
 // command module per verb), via the navCommand factory in
 // src/lib/nav-command.ts.
 
-import { hc } from "./hc.js";
+import { attrValue, hc } from "./hc.js";
+import { hiddenMenu } from "./hidden.js";
 
 /** $Mod-s (focus.sh) — the zoom/peek grid: urgent jumpto, frame-down
  *  focus, the floating-layer branch (attr floating_focused true both
@@ -118,7 +119,7 @@ export async function shiftUp(): Promise<void> {
     );
 }
 
-/** $ModCtrl-r + $ModCtrl-c (autostart): rotate-tree. Three modes:
+/** $ModCtrl-r + $ModCtrl-c (autostart): rotate. Three modes:
  *  auto (default, $ModCtrl-r) — the rotate/skip condition: rotate the
  *    tree when <3 frames, otherwise the focus fallback (cycle_frame
  *    forward when >1 frame, cycle windows on a single frame).
@@ -338,4 +339,18 @@ export async function fullscreenToggle(): Promise<void> {
  *  client. */
 export async function minimizeToggle(): Promise<void> {
     await hc("attr", "clients.focus.minimized", "toggle");
+}
+
+/** $ModCtrl-d (autostart): minimize — minimize the focused client; on an
+ *  EMPTY focused frame hand off to the mod-g machine (the hidden picker,
+ *  lib/hidden.ts: no hidden clients -> the all-but-focused windows
+ *  switcher, exactly one hidden client -> reveal it directly, more ->
+ *  the hidden-windows menu). */
+export async function minimizeOrPicker(): Promise<void> {
+    const wid = (await attrValue<string>("clients.focus.winid")) ?? "";
+    if (wid === "") {
+        await hiddenMenu(); // never returns on the menu branches (rofi exec)
+        return;
+    }
+    await hc("set_attr", `clients.${wid}.minimized`, "true");
 }

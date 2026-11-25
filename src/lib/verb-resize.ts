@@ -15,7 +15,7 @@ import { z } from "zod";
 
 import { attr } from "./hc.js";
 import { resizeDelta, resizeFill, resizeToRect } from "./resize.js";
-import { layerMods, layerOptions, withLayerMods } from "./layers.js";
+import { autoFloatOrSkip, floatingOnlyOption, layerMods, layerOptions, withLayerMods } from "./layers.js";
 
 export default defineCommand({
     name: "resize" as never,
@@ -33,9 +33,11 @@ export default defineCommand({
         mode: option(z.string().optional(), {
             description: "'frame' to fill the client's parent frame, or an explicit WxH+X+Y content rect",
         }),
+        ...floatingOnlyOption,
         ...layerOptions,
     },
     handler: async ({ flags }) => {
+        if ((await autoFloatOrSkip(flags)) === "skip") return;
         const wid = flags.wid || (await attr("clients.focus.winid"));
         if (!wid) {
             throw new Error("hc_resize: no focused client");

@@ -5,33 +5,33 @@
 //
 // ARGUMENTS — declarative, the single source of truth (see ARGS below):
 //   object   tail  required  what to allocate (a choice list)
-//   name     tail  per-object (the tagspace name — REQUIRED for
-//                  tagspace: omitted it is prompted for, then the fail
+//   name     tail  per-object (the tag name — REQUIRED for
+//                  tag: omitted it is prompted for, then the fail
 //                  shape — / the terminal command, optional)
 //
 //   frame         split; the focused client keeps focus
 //   terminal      a terminal spawns (--no-distract unless --active;
-//                 --on <tagspace> attaches it REMOTELY with
+//                 --on <tag> attaches it REMOTELY with
 //                 focus-stealing prevented)
 //   notification  a dunst notification is allocated (identical to new —
 //                 notifications never take keyboard focus)
-//   tagspace      an hlwm tag is created (entered only with --active)
+//   tag      an hlwm tag is created (entered only with --active)
 import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
 
 import { newFrame } from "../lib/chains.js";
 import {
     allocateNotification,
-    allocateTagspace,
+    allocateTag,
     allocateTerminal,
-    ensureTagspace,
+    ensureTag,
 } from "../lib/allocate.js";
 import { type ArgSpec, resolveVerbArgs } from "../lib/args.js";
 import { hc } from "../lib/hc.js";
 
 const VERB = "add";
 
-const OBJECTS = ["frame", "terminal", "notification", "tagspace"] as const;
+const OBJECTS = ["frame", "terminal", "notification", "tag"] as const;
 
 const OBJECT_SPECS: Record<string, readonly ArgSpec[]> = {
     frame: [],
@@ -39,21 +39,21 @@ const OBJECT_SPECS: Record<string, readonly ArgSpec[]> = {
         { name: "command", description: "the command to run (default: a login shell)" },
     ],
     notification: [],
-    tagspace: [
-        { name: "name", description: "the tagspace name", required: true, promptTitle: "tagspace name" },
+    tag: [
+        { name: "name", description: "the tag name", required: true, promptTitle: "tag name" },
     ],
 };
 
 export default defineCommand({
     name: "add" as never,
-    description: "add <frame|terminal|notification|tagspace> — allocate, focus stays",
+    description: "add <frame|terminal|notification|tag> — allocate, focus stays",
     options: {
         active: option(z.boolean().default(false), {
             description: "alias to `herbctl new <object>` (focus comes to the new object)",
             short: "a",
         }),
         on: option(z.string().optional(), {
-            description: "allocate on a remote tagspace (focus-stealing prevented)",
+            description: "allocate on a remote tag (focus-stealing prevented)",
             short: "o",
         }),
         directory: option(z.string().optional(), {
@@ -85,7 +85,7 @@ export default defineCommand({
             await hc("split", "auto");
             return;
         case "terminal":
-            if (on) await ensureTagspace(on);
+            if (on) await ensureTag(on);
             await allocateTerminal(focus, args.command, { on, directory: flags.directory });
             return;
         case "notification": {
@@ -94,8 +94,8 @@ export default defineCommand({
             if (!ok) process.exit(1);
             return;
         }
-        case "tagspace": {
-            const tag = await allocateTagspace(focus, args.name);
+        case "tag": {
+            const tag = await allocateTag(focus, args.name);
             if (tag === null) process.exit(1);
             return;
         }

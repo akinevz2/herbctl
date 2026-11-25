@@ -4,24 +4,24 @@
 //
 // ARGUMENTS — declarative, the single source of truth (see ARGS below):
 //   object   tail  required  what to allocate (a choice list)
-//   name     tail  per-object (the tagspace name / the terminal command)
+//   name     tail  per-object (the tag name / the terminal command)
 //
 //   frame         split + cycle into the new frame (the migrated
 //                 new-frame, lib/chains.ts newFrame)
 //   terminal      a terminal spawns and TAKES focus on attach
 //   notification  a dunst notification is allocated and raised (it
 //                 never takes keyboard focus)
-//   tagspace      an hlwm tag is created and entered — the name is
+//   tag      an hlwm tag is created and entered — the name is
 //                 REQUIRED: omitted, it is prompted for (themed rofi
 //                 input, then the urgent terminal); the prompt refused,
 //                 the command fails with
-//                 `argument name is required for new tagspace` (exit 2)
+//                 `argument name is required for new tag` (exit 2)
 import { defineCommand } from "@bunli/core";
 
 import { newFrame } from "../lib/chains.js";
 import {
     allocateNotification,
-    allocateTagspace,
+    allocateTag,
     allocateTerminal,
 } from "../lib/allocate.js";
 import { type ArgSpec, resolveVerbArgs } from "../lib/args.js";
@@ -30,7 +30,7 @@ const VERB = "new";
 
 /** the object surface — the object argument is a choice list, the name
  *  is only meaningful for some objects (per-object specs below). */
-const OBJECTS = ["frame", "terminal", "notification", "tagspace"] as const;
+const OBJECTS = ["frame", "terminal", "notification", "tag"] as const;
 
 const OBJECT_SPECS: Record<string, readonly ArgSpec[]> = {
     frame: [],
@@ -38,14 +38,14 @@ const OBJECT_SPECS: Record<string, readonly ArgSpec[]> = {
         { name: "command", description: "the command to run (default: a login shell)" },
     ],
     notification: [],
-    tagspace: [
-        { name: "name", description: "the tagspace name", required: true, promptTitle: "new tagspace name" },
+    tag: [
+        { name: "name", description: "the tag name", required: true, promptTitle: "new tag name" },
     ],
 };
 
 export default defineCommand({
     name: "new" as never,
-    description: "new <frame|terminal|notification|tagspace> — allocate and focus to the new object",
+    description: "new <frame|terminal|notification|tag> — allocate and focus to the new object",
     handler: async ({ positional }) => {
         const [object, ...rest] = positional;
         const specs = OBJECT_SPECS[object ?? ""];
@@ -69,8 +69,8 @@ export default defineCommand({
             if (!ok) process.exit(1);
             return;
         }
-        case "tagspace": {
-            const tag = await allocateTagspace(true, args.name);
+        case "tag": {
+            const tag = await allocateTag(true, args.name);
             if (tag === null) process.exit(1);
             return;
         }

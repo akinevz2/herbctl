@@ -10,28 +10,28 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
-    allocateTagspace,
-    freeTagspaceName,
+    allocateTag,
+    freeTagName,
     allocateFrame,
-    freeTagspace,
+    freeTag,
     allocateNotification,
     dismissNotifications,
     allocateTerminal,
-    ensureTagspace,
-    listTagspaces,
+    ensureTag,
+    listTags,
     tagIndexesFromDump,
     tagNameFromReply,
-    tagspaceNames,
+    tagNames,
 } from "../src/lib/allocate";
 
 const FIX = join(import.meta.dir, "fixtures", "mock-bin");
 
 /** the REAL `herbstclient attr tags.` bytes (captured live, committed
- *  as the fixture): the correctness baseline for listTagspaces. */
+ *  as the fixture): the correctness baseline for listTags. */
 const TAGS_DUMP = readFileSync(join(import.meta.dir, "fixtures", "tags-dump.txt"), "utf8");
 const TAG_NAMES = ["work", "term", "config", "logs", "task", "browser", "discord", "notes"];
 
-/** the scenario rows that answer the listTagspaces round trips: the
+/** the scenario rows that answer the listTags round trips: the
  *  child name reads FIRST (specific), then the top-level `attr tags.`
  *  dump (its regex must not swallow the child calls), and the erroring
  *  empty index slots (8, 9) that fail-soft to null. */
@@ -93,7 +93,7 @@ afterEach(() => {
     rmSync(tmp, { recursive: true, force: true });
 });
 
-describe("tagspace parsing (string level — the real herbstclient bytes)", () => {
+describe("tag parsing (string level — the real herbstclient bytes)", () => {
     test("tagIndexesFromDump reads the real attr tags. dump", () => {
         expect(tagIndexesFromDump(TAGS_DUMP)).toEqual([
             "0", "1", "2", "3", "4", "5", "6", "7", "by-name", "focus",
@@ -108,80 +108,80 @@ describe("tagspace parsing (string level — the real herbstclient bytes)", () =
         expect(tagNameFromReply("")).toBeUndefined();
     });
 
-    test("tagspaceNames derives the names from the dump + replies", () => {
+    test("tagNames derives the names from the dump + replies", () => {
         const reply = (idx: string) =>
             Number.isInteger(Number(idx))
                 ? TAG_NAMES[Number(idx)] ?? ""
                 : "";
-        expect(tagspaceNames(TAGS_DUMP, reply)).toEqual(TAG_NAMES);
+        expect(tagNames(TAGS_DUMP, reply)).toEqual(TAG_NAMES);
     });
 
-    test("tagspaceNames skips the empty index slots and mirrors", () => {
+    test("tagNames skips the empty index slots and mirrors", () => {
         const reply = (idx: string) =>
             Number.isInteger(Number(idx)) && Number(idx) < TAG_NAMES.length
                 ? TAG_NAMES[Number(idx)]
                 : "";
         // the focus mirror repeats "work" — deduped to one entry
-        expect(tagspaceNames(TAGS_DUMP, reply)).toEqual(TAG_NAMES);
+        expect(tagNames(TAGS_DUMP, reply)).toEqual(TAG_NAMES);
     });
 
-    test("tagspaceNames sees a leaked numeric tagspace (the free-name gap moves)", () => {
+    test("tagNames sees a leaked numeric tag (the free-name gap moves)", () => {
         const leak = ["work", "1", "2"];
         const reply = (idx: string) =>
             Number.isInteger(Number(idx)) && Number(idx) < leak.length
                 ? leak[Number(idx)]
                 : "";
-        expect(tagspaceNames(TAGS_DUMP, reply)).toEqual(leak);
+        expect(tagNames(TAGS_DUMP, reply)).toEqual(leak);
     });
 });
 
-describe("tagspace allocation (hlwm tags)", () => {
-    test("listTagspaces parses the real herbstclient attr tags. dump", async () => {
+describe("tag allocation (hlwm tags)", () => {
+    test("listTags parses the real herbstclient attr tags. dump", async () => {
         scenario(tagsScenario());
-        expect(await listTagspaces()).toEqual(TAG_NAMES);
+        expect(await listTags()).toEqual(TAG_NAMES);
     });
 
-    test("freeTagspaceName picks the first free numeric (no numeric names)", async () => {
+    test("freeTagName picks the first free numeric (no numeric names)", async () => {
         scenario(tagsScenario());
-        expect(await freeTagspaceName()).toBe("1");
+        expect(await freeTagName()).toBe("1");
     });
 
-    test("freeTagspaceName skips taken numeric names", async () => {
-        // the leaked-tag case: a numeric tagspace exists among the names
+    test("freeTagName skips taken numeric names", async () => {
+        // the leaked-tag case: a numeric tag exists among the names
         const names = ["work", "1", "2"];
         const rows: Array<[string, string, string]> = [];
         names.forEach((n, i) =>
             rows.push([`attr tags\\.${i}\\.name$`, "0", n])),
         rows.push(["attr tags\\.$", "0", TAGS_DUMP.replaceAll("\n", "\\n")]);
         scenario(rows);
-        expect(await freeTagspaceName()).toBe("3");
+        expect(await freeTagName()).toBe("3");
     });
 
-    test("new tagspace: add + use (the smallest free numeric)", async () => {
+    test("new tag: add + use (the smallest free numeric)", async () => {
         scenario(tagsScenario());
-        const tag = await allocateTagspace(true);
+        const tag = await allocateTag(true);
         expect(tag).toBe("1");
         expect(log()).toContainEqual(["add", "1"]);
         expect(log()).toContainEqual(["use", "1"]);
     });
 
-    test("add tagspace: add WITHOUT use (focus stays)", async () => {
+    test("add tag: add WITHOUT use (focus stays)", async () => {
         scenario(tagsScenario());
-        const tag = await allocateTagspace(false);
+        const tag = await allocateTag(false);
         expect(tag).toBe("1");
         expect(log()).toContainEqual(["add", "1"]);
         expect(log().some((argv) => argv[0] === "use")).toBe(false);
     });
 
-    test("new tagspace on an existing name degenerates to entry", async () => {
+    test("new tag on an existing name degenerates to entry", async () => {
         scenario(tagsScenario());
-        const tag = await allocateTagspace(true, "work");
+        const tag = await allocateTag(true, "work");
         expect(tag).toBe("work");
         expect(log()).toContainEqual(["use", "work"]);
         expect(log().some((argv) => argv[0] === "add")).toBe(false);
     });
 
-    test("close tagspace: clients move to the first other tag, then merge", async () => {
+    test("close tag: clients move to the first other tag, then merge", async () => {
         const rows: Array<[string, string, string]> = [
             ["attr tags.focus.name", "0", "work"],
             ["^attr clients\\.$", "0", "The managed windows. For every (managed) window id there is an entry here.\\n\\n2 children:\\n  0x1.\\n  0x2."],
@@ -192,7 +192,7 @@ describe("tagspace allocation (hlwm tags)", () => {
             rows.push([`attr tags\\.${i}\\.name$`, "0", n])),
         rows.push(["attr tags\\.$", "0", TAGS_DUMP.replaceAll("\n", "\\n")]);
         scenario(rows);
-        const tag = await freeTagspace();
+        const tag = await freeTag();
         expect(tag).toBe("work");
         expect(log()).toContainEqual(["move", "0x1", "term"]);
         expect(log()).toContainEqual(["move", "0x2", "term"]);
@@ -229,20 +229,20 @@ describe("notification allocation (no keyboard focus: new/add identical)", () =>
     });
 });
 
-describe("remote-tagspace allocation (--on, focus-stealing prevented)", () => {
-    test("ensureTagspace creates a missing hlwm tag", async () => {
+describe("remote-tag allocation (--on, focus-stealing prevented)", () => {
+    test("ensureTag creates a missing hlwm tag", async () => {
         scenario(tagsScenario());
-        expect(await ensureTagspace("zz-proto")).toBe(true);
+        expect(await ensureTag("zz-proto")).toBe(true);
         expect(log()).toContainEqual(["add", "zz-proto"]);
     });
 
-    test("ensureTagspace leaves an existing one alone", async () => {
+    test("ensureTag leaves an existing one alone", async () => {
         scenario([
             ["attr tags\\.2\\.name$", "0", "notes"],
             ["attr tags\\.[0-7]\\.name$", "0", TAG_NAMES[0]],
             ["attr tags\\.$", "0", TAGS_DUMP.replaceAll("\n", "\\n")],
         ]);
-        expect(await ensureTagspace("notes")).toBe(true);
+        expect(await ensureTag("notes")).toBe(true);
         expect(log().some((argv) => argv[0] === "add")).toBe(false);
     });
 

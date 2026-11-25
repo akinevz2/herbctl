@@ -15,7 +15,7 @@ import { z } from "zod";
 
 import { attr } from "./hc.js";
 import { centerWindowInOwnFrame, placeCenteredIn } from "./geometry.js";
-import { layerMods, layerOptions, withLayerMods } from "./layers.js";
+import { autoFloatOrSkip, floatingOnlyOption, layerMods, layerOptions, withLayerMods } from "./layers.js";
 
 export default defineCommand({
     name: "center" as never,
@@ -26,9 +26,11 @@ export default defineCommand({
                 "Center THIS specific window within its OWN parent frame instead of the focused one (old centerInFrame semantics; no float toggling)",
             short: "w",
         }),
+        ...floatingOnlyOption,
         ...layerOptions,
     },
     handler: async ({ flags, positional }) => {
+        if ((await autoFloatOrSkip(flags)) === "skip") return;
         const mods = layerMods(flags);
         if (flags.wid) {
             await withLayerMods(flags.wid, mods, (wid) => centerWindowInOwnFrame(wid));

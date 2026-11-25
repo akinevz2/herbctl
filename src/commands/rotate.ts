@@ -1,4 +1,4 @@
-// src/commands/rotate-tree.ts
+// src/commands/rotate.ts
 // (see src/lib/chains.ts for the port and the source binding). The
 // only nav verb with flags: --focus forces the focus/skip branch,
 // --smart[=N] reverses the rotate condition (rotate N or more frames,
@@ -11,7 +11,7 @@ import { z } from "zod";
 import { rotateTree, type RotateTreeMode } from "../lib/chains.js";
 
 export default defineCommand({
-    name: "rotate-tree" as never,
+    name: "rotate" as never,
     description: "rotate the frame tree",
     options: {
         focus: option(z.boolean().default(false), {

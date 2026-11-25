@@ -7,8 +7,8 @@
 // …and consumed by BOTH surfaces that used to scrape `--help` text
 // (the removed captureHelp pathway):
 //   - `herbctl completions --internal` (the herbctl-rofi JSON feed)
-//   - the run palette (`herbctl run`), which now reads its levels
-//     straight from the same registry — no subprocess, no parsing
+//     — the run palette that also read this registry was removed
+//     with the verb (BACKLOG.md)
 //
 // tokens come from the terse descriptions' usage enums ("<a|b|c>" and
 // "[a|b|c]" — the collapsed verbs declare their modes there, one
@@ -18,7 +18,7 @@
 import { version } from "../../package.json" with { type: "json" };
 
 export interface TailSpec {
-    /** the tail parameter's name ("name" for the tagspace verbs) */
+    /** the tail parameter's name ("name" for the tag verbs) */
     name: string;
     /** required: omitted, the verb PROMPTS (rofi input, then the urgent
      *  terminal) and fails with the argument-required shape when the
@@ -28,7 +28,7 @@ export interface TailSpec {
 }
 
 /** a flag scoped to ONE mode token of a collapsed verb (--empty lives
- *  under close's tagspace mode; --on/--directory under new/add's
+ *  under close's tag mode; --on/--directory under new/add's
  *  terminal) — the registry carries the relation so the completions
  *  offer the flag ONLY where it applies. */
 export interface ModeFlag {
@@ -160,7 +160,7 @@ export function getCandidates(
     if (verb === null) return []; // not a verb — nothing to offer
     if (rest.length > 0) {
         // the mode-scoped flags join the verb flags ONCE their mode
-        // token is consumed (--empty appears under close's tagspace)
+        // token is consumed (--empty appears under close's tag)
         const mode = rest.find((t) => verb.modeFlags?.[t] !== undefined);
         const scoped = mode !== undefined
             ? (verb.modeFlags?.[mode] ?? []).map((mf) => mf.flag)

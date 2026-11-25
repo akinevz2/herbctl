@@ -1,6 +1,6 @@
 // src/lib/terminal.ts — the single-shot terminal spawner (the
 // launch_alacritty script, migrated into herbctl as `herbctl
-// terminal`; open and run hang off the same machine).
+// terminal`; open hang off the same machine).
 //
 // The command runs under an interactive bash inside the spawned
 // terminal, delegated to paused-for-dismiss_idle — when the command
@@ -34,8 +34,85 @@
 // spawn` (detached, WM-managed) — NOT through `hc spawn` rules
 // machinery: that is for graphical apps.
 import { existsSync, statSync } from "node:fs";
-import { hc, setAttr } from "./hc.js";
+import { attrValue, hc, listClients, setAttr } from "./hc.js";
 import { spawnEnv } from "./rofi.js";
+
+/** Parse a hlwm WxH+X+Y geometry string. Null when malformed. */
+function parseGeom(
+    s: string,
+): { w: number; h: number; x: number; y: number } | null {
+    const m = /^(\d+)x(\d+)\+(\d+)\+(\d+)$/.exec(s);
+    if (!m) return null;
+    const [, w, h, x, y] = m.map(Number) as [unknown, number, number, number, number];
+    return { w, h, x, y };
+}
+
+/**
+ * The fullHeight TARGET geometry (pure-ish: live attr reads, no
+ * spawn): floating at FULL FOCUSED-FRAME height, half the frame's
+ * width, centered on it, as a WxH+X+Y string — null when no usable
+ * frame geometry.
+ *
+ * Anchored to the FOCUSED FRAME (tags.focus.tiling.focused_frame.
+ * content_geometry), NOT the tag root: the root spans the whole tag
+ * and its rectangle can overrun the bar/panel strips; a frame lives
+ * strictly inside them, so the pager always fits and stays out of the
+ * user's way.
+ *
+ * The frame rect is measured INSIDE the window frame: the WM adds the
+ * decoration outward (title bar on top, borders around), so the height
+ * shrinks by title_height + 2*border_width — without it the bottom
+ * edge lands off-screen. The theme values are read LIVE, one leaf attr
+ * each (the FLOATING slice decorates this window — the rule floats it
+ * — with the global slice as fallback); nothing is hardcoded.
+ *
+ * floating_geometry is interpreted in ABSOLUTE screen coordinates of
+ * the client content (verified live: requested 400x300+600+500 landed
+ * at X 600,500 exactly). The RULE consequence is nonetheless nudged
+ * by hlwm's arrival placement (a clamp toward the work area that does
+ * NOT shrink the height — the too-tall regression); the post-attach
+ * CORRECTOR (correctFullHeight) pins the window to this exact target
+ * via `set_attr` — verified live: a post-attach set is honored
+ * verbatim, never re-clamped.
+ */
+export async function fullHeightTarget(): Promise<string | null> {
+    const themeDeco = async (): Promise<{ title: number; border: number }> => {
+        const leaf = async (floating: string, global: string): Promise<number> =>
+            (await attrValue<number>(floating)) ??
+            (await attrValue<number>(global)) ?? 0;
+        return {
+            title: await leaf("theme.floating.title_height", "theme.title_height"),
+            border: await leaf("theme.floating.border_width", "theme.border_width"),
+        };
+    };
+    const [geo, deco] = await Promise.all([
+        attrValue<string>(
+            "tags.focus.tiling.focused_frame.content_geometry",
+        ),
+        themeDeco(),
+    ]);
+    const rect = parseGeom(geo ?? "");
+    if (rect === null) return null;
+    // floating_geometry positions the window's CONTENT; the WM draws
+    // the decoration OUTWARD from it (title bar up top, borders
+    // around). The outer frame lands exactly on the frame's content
+    // rect: content y = frame.y + title + border, content h =
+    // frame.h - pad, half the width centered (border-adjusted).
+    const pad = deco.title + 2 * deco.border;
+    const w = Math.max(Math.floor(rect.w / 2) - deco.border, 1);
+    const h = Math.max(rect.h - pad, 1);
+    const x = rect.x + Math.floor((rect.w - w) / 2);
+    const y = rect.y + deco.title + deco.border;
+    return `${w}x${h}+${x}+${y}`;
+}
+
+/** The fullHeight RULE (the arrival hint — correctFullHeight pins
+ *  the exact target post-attach). */
+export async function fullHeightRule(): Promise<string[]> {
+    const target = await fullHeightTarget();
+    if (target === null) return ["floating=on"];
+    return ["floating=on", `floating_geometry=${target}`];
+}
 
 export interface TerminalOptions {
     /** The command STRING (bash -ic), or null for a login shell. */
@@ -48,12 +125,13 @@ export interface TerminalOptions {
     urgent?: boolean;
     /** the terminal does NOT take focus on attach (focus=off rule). */
     noDistract?: boolean;
-    /** attach on this tagspace (an hlwm tag; created when missing). */
+    /** attach on this tag (an hlwm tag; created when missing). */
     tag?: string | null;
-    /** the help-terminal shape: floating at FULL TAG height
-     *  (half the tag width, horizontally centered) via the
+    /** the help-terminal shape: floating at FULL focused-frame
+     *  height (half the frame width, centered on it) via the
      *  floating_geometry rule consequence. The pager/help surfaces
-     *  read better tall than as a corner window. */
+     *  read better tall than as a corner window — and the frame
+     *  anchor keeps the surface inside the panels. */
     fullHeight?: boolean;
 }
 
@@ -99,8 +177,9 @@ function watchUrgent(before: Set<string>): void {
 
 /**
  * Spawn the terminal, detached and rule-scoped. Resolves the child
- * pid (the caller may close the terminal later — the run palette
- * closes its pager help-terminals when the rofi session ends), or
+ * pid (the caller may close the terminal later — palette callers
+ * close their tracked pager help-terminals when the rofi session
+ * ends), or
  * null on any failure (the dots fail-soft convention — a failed spawn
  * must never wedge the keybind).
  */
@@ -147,26 +226,7 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
     if (opts.noDistract) rule.push("focus=off");
     if (opts.tag) rule.push(`tag=${opts.tag}`, "focus=off", "switchtag=off");
     if (opts.fullHeight) {
-        // FULL TAG height, half width, horizontally centered — the
-        // pager surface. The rectangle is the focused tag's tiling
-        // area (tags.focus.tiling.root.content_geometry), NOT
-        // monitor_rect: the monitor rectangle includes the panel
-        // strips, so the terminal rendered too tall for the tag.
-        // Fail-soft: no geometry, the plain floating rule already
-        // applied by --floating callers.
-        const rect = (await hc("attr", "tags.focus.tiling.root.content_geometry"))?.stdout.trim();
-        const m = /^(\d+)x(\d+)\+(\d+)\+(\d+)$/.exec(rect ?? "");
-        if (m) {
-            const [, gw, gh, gx, gy] = m.map(Number) as [unknown, number, number, number, number];
-            const w = Math.floor(gw / 2);
-            const x = gx + Math.floor((gw - w) / 2);
-            rule.push(
-                "floating=on",
-                `floating_geometry=${w}x${gh}+${x}+${gy}`,
-            );
-        } else {
-            rule.push("floating=on");
-        }
+        rule.push(...(await fullHeightRule()));
     }
 
     const before = opts.urgent ? await clientIds() : new Set<string>();
@@ -177,9 +237,9 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
             await hc("rule", "once", `class~${classPattern(terminal)}`, ...rule);
         }
         // Spawned DIRECTLY (detached) rather than via `herbstclient
-        // spawn`: the caller gets the child pid back, which the run
-        // palette uses to CLOSE its pager help-terminals when the rofi
-        // session ends. The once-rule still applies — it fires on the
+        // spawn`: the caller gets the child pid back, which palette
+        // callers use to CLOSE their pager help-terminals when the
+        // rofi session ends. The once-rule still applies — it fires on the
         // window attach, not on who exec'd it.
         const child = Bun.spawn([terminal, "-e", "bash", "-ic", inner], {
             detached: true,
@@ -194,5 +254,36 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
         await hc("unlock");
     }
     if (opts.urgent) watchUrgent(before);
+    if (opts.fullHeight && pid !== null) {
+        // the CORRECTOR: hlwm's arrival placement nudges the ruled
+        // geometry (a clamp toward the work area that does not
+        // shrink the height — the too-tall regression), but a
+        // POST-ATTACH `set_attr` is honored verbatim (verified
+        // live). Fire-and-forget: wait for the terminal client to
+        // attach (matched by the spawned child's pid — hlwm exposes
+        // it), then pin its floating_geometry to the exact target.
+        void correctFullHeight(pid);
+    }
     return pid;
+}
+
+/** Fire-and-forget post-attach correction: poll briefly for the
+ *  client whose pid is the spawned terminal's, then pin its
+ *  floating_geometry to the recomputed fullHeight target (the frame
+ *  may have changed while the terminal started — recompute, don't
+ *  reuse the rule's string). Fail-soft everywhere: a miss leaves
+ *  hlwm's arrival placement. */
+async function correctFullHeight(pid: number): Promise<void> {
+    for (let i = 0; i < 30; i += 1) {
+        await new Promise((r) => setTimeout(r, 150));
+        for (const w of await listClients()) {
+            if ((await attrValue<number>(`clients.${w}.pid`)) === pid) {
+                const target = await fullHeightTarget();
+                if (target !== null) {
+                    await setAttr(`clients.${w}.floating_geometry`, target);
+                }
+                return;
+            }
+        }
+    }
 }

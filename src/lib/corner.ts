@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import { attr, setAttr } from "./hc.js";
 import { computeQuadrant, writeQuadrant } from "./geometry.js";
-import { layerMods, layerOptions, withLock } from "./layers.js";
+import { autoFloatOrSkip, floatingOnlyOption, layerMods, layerOptions, withLock } from "./layers.js";
 
 export default defineCommand({
     name: "corner" as never,
@@ -21,9 +21,11 @@ export default defineCommand({
             description: "Pin THIS window instead of the focused one",
             short: "w",
         }),
+        ...floatingOnlyOption,
         ...layerOptions,
     },
     handler: async ({ flags, positional }) => {
+        if ((await autoFloatOrSkip(flags)) === "skip") return;
         const wid = flags.wid || (await attr("clients.focus.winid"));
         if (!wid) return; // no focused client: fail soft like the other helpers
         const target = positional[0] === "frame" ? "frame" : "root";

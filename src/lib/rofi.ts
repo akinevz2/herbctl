@@ -1,6 +1,6 @@
-// src/lib/rofi.ts — the shared rofi dmenu layer (the hc_command
-// palette machinery, made reusable for herbctl's interactive verbs:
-// `open` and `run`).
+// src/lib/rofi.ts — the shared rofi dmenu layer (the palette
+// machinery, made reusable for herbctl's interactive verbs: `find`
+// and the argument prompts).
 //
 // The keymap is the palette convention (rofi 2.0 custom keys):
 //   Return            rc 0   accept entry (or typed text)
@@ -15,7 +15,7 @@
 // still move the selection. dmenu has NO inline completion: the
 // "complete" action is the caller re-opening the menu with -filter.
 //
-// Theme: ~/.config/rofi/command.rasi (the hc_command palette look)
+// Theme: ~/.config/rofi/command.rasi (the historical palette look)
 // when it exists, no theme otherwise — fail-soft, like everything
 // here.
 
@@ -141,12 +141,12 @@ export async function rofiMenu(
 }
 
 /**
- * Run a command line in a floating temporary terminal (the palette's
- * Shift-Return behavior, the help ACTION's pager): the output is the
- * point, and the terminal never disturbs the tiling layout — full tag
- * height (the help surfaces read better tall). Resolves the
- * terminal's pid (for the tracked help-terminals) or null when the
- * spawn failed.
+ * Run a command line in the help-terminal shape: floating at FULL
+ * focused-frame height (the pager surfaces read better tall), FOCUSED
+ * — the shared shape behind the palette's Shift-Return and Tab help,
+ * and the output surfaces (the output is the point, the tiling layout
+ * is never disturbed). Resolves the terminal's pid (for the tracked
+ * help-terminals) or null when the spawn failed.
  */
 export async function runInTerminal(commandLine: string): Promise<number | null> {
     const { launchTerminal } = await import("./terminal.js");

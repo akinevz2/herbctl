@@ -6,18 +6,17 @@
 import { describe, expect, test } from "bun:test";
 
 import { argFailReason, resolveTails, promptBackends, type ArgSpec } from "../src/lib/args";
-import { tabOnEmptyDecision } from "../src/commands/run";
 import { registerCompletions, getVerb } from "../src/lib/completions";
 
 const SPECS: readonly ArgSpec[] = [
     { name: "object", description: "what to allocate", required: true },
-    { name: "name", description: "the tagspace name" },
+    { name: "name", description: "the tag name" },
 ];
 
 describe("resolveTails (pure, string level)", () => {
     test("tail positionals pair with the specs in order", () => {
-        const { values, missing } = resolveTails(SPECS, ["tagspace", "notes"]);
-        expect(values).toEqual({ object: "tagspace", name: "notes" });
+        const { values, missing } = resolveTails(SPECS, ["tag", "notes"]);
+        expect(values).toEqual({ object: "tag", name: "notes" });
         expect(missing).toBeNull();
     });
 
@@ -27,8 +26,8 @@ describe("resolveTails (pure, string level)", () => {
     });
 
     test("an optional tail left out is absent (no default)", () => {
-        const { values, missing } = resolveTails(SPECS, ["tagspace"]);
-        expect(values).toEqual({ object: "tagspace" });
+        const { values, missing } = resolveTails(SPECS, ["tag"]);
+        expect(values).toEqual({ object: "tag" });
         expect(missing).toBeNull();
         expect("name" in values).toBe(false);
     });
@@ -38,7 +37,7 @@ describe("resolveTails (pure, string level)", () => {
             { name: "object", description: "", required: true },
             { name: "name", description: "", default: "scratch" },
         ];
-        const { values } = resolveTails(specs, ["tagspace"]);
+        const { values } = resolveTails(specs, ["tag"]);
         expect(values.name).toBe("scratch");
     });
 
@@ -51,8 +50,8 @@ describe("resolveTails (pure, string level)", () => {
     });
 
     test("the fail reason has the orchestration shape", () => {
-        expect(argFailReason("name", "add tagspace")).toBe(
-            "argument name is required for add tagspace",
+        expect(argFailReason("name", "add tag")).toBe(
+            "argument name is required for add tag",
         );
     });
 });
@@ -79,15 +78,15 @@ describe("promptBackends (the resilient query chain)", () => {
     });
 });
 
-describe("the registry tail fact (the functional interface)", () => {
-    test("a required tail → Tab opens the help; no tail → Tab executes", () => {
+describe("the registry tail fact", () => {
+    test("a required tail is DECLARED on the verb surface", () => {
         registerCompletions([
-            { name: "tagspace", description: "tagspace [name] — enter, allocating when missing" },
+            { name: "tag", description: "tag [name] — enter, allocating when missing" },
             { name: "reload", description: "reload the WM + theme" },
         ], {
-            tagspace: { name: "name", required: true, description: "the tagspace name" },
+            tag: { name: "name", required: true, description: "the tag name" },
         });
-        expect(tabOnEmptyDecision(getVerb("tagspace")?.tail)).toBe("help");
-        expect(tabOnEmptyDecision(getVerb("reload")?.tail)).toBe("execute");
+        expect(getVerb("tag")?.tail?.required).toBe(true);
+        expect(getVerb("reload")?.tail).toBeUndefined();
     });
 });

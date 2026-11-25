@@ -1,6 +1,6 @@
-// src/lib/float-focus.ts — float-focus: the hc_focus float-register
-// machine (~/dots/herbst_focus/.local/bin/hc_focus, the $Mod-f key —
-// distinct from zoom, which is hc_zoom on $ModCtrl-f):
+// src/lib/float-focus.ts — float-focus: the $Mod-f register machine
+// (the float-session focus manager; distinct from zoom, which is
+// $ModCtrl-f):
 //
 //   Pre-scan the first VISIBLE float on the tag (the only candidate
 //   the floating layer can focus; a fallback for the focus read that
@@ -10,26 +10,40 @@
 //     TRY the layer switch (floating_focused on; fails when no
 //     non-minimized float exists).
 //     Success -> the float layer is focused, the float STAYS
-//     floating — TERMINATE. Mod-f never un-floats (the
-//     grab-and-unfloat register is Mod-x's; the floating layer is
-//     not destroyed by its focus key).
+//     floating — TERMINATE. Mod-f never un-floats on this branch (the
+//     grab register is Mod-x's).
 //     Failure -> float the current window, but ONLY when the focused
-//     frame's layout algorithm is "max": flags off, hc_center frame
-//     (the size-keeping lift), close the vacated frame when it reads
-//     zero clients (`remove` — Mod-f owns frame closing on this path),
-//     hc_fit_to frame. Afterwards the focused frame is set to the max
+//     frame's layout algorithm is "max": flags off, PRE-LIFT floating
+//     geometry recorded to hlwm env (PF_FLOAT_GEO_<wid>, reverted by
+//     the unfloat branch), float on, then PSEUDO-FULLSCREEN: centered
+//     in and fitted to the TAG ROOT geometry (NOT the focused frame —
+//     the lift fills the whole tag area), close the vacated frame when
+//     it reads zero clients (`remove` — Mod-f owns frame closing on
+//     this path). Afterwards the focused frame is set to the max
 //     algorithm regardless (the script's unconditional tail).
 //
-//   floating_focused TRUE (a float has focus): UNFOCUS the float
-//   layer — floating_focused off, the float PRESERVED (closing out
-//   of the floating layer is Mod-x's register).
+//   floating_focused TRUE (a float has focus): return it to the
+//   TILING layer — un-float the focused window and REVERT its
+//   floating size to the pre-lift record (the PF_FLOAT_GEO_<wid> env
+//   the lift wrote; no record, nothing reverted), then the
+//   floating_focused off follow-up. Mod-f is the toggle in both
+//   directions; Mod-x is the shrink/step-aside register.
 //
 //   NO script-level lock: the helpers take their own
 //   reference-counted WM locks (hc_focus's header).
 
 import { attrRaw, hc, setAttr } from "./hc.js";
 import { fitTo, placeCenteredIn } from "./geometry.js";
-import { firstVisibleFloat } from "./imperatives.js";
+import { firstVisibleFloat, unfloatWid } from "./imperatives.js";
+
+const GEO_RE = /^\d+x\d+\+\d+\+\d+$/;
+
+/** Read the recorded pre-lift float geometry for <wid>, if any. */
+async function savedFloatGeo(wid: string): Promise<string | null> {
+    const out = (await hc("getenv", `PF_FLOAT_GEO_${wid}`))?.stdout ?? "";
+    const v = out.trim();
+    return GEO_RE.test(v) ? v : null;
+}
 
 export async function floatFocus(): Promise<void> {
     const tag = await attrRaw("tags.focus.name");
@@ -42,16 +56,13 @@ export async function floatFocus(): Promise<void> {
         if ((await hc("attr", "tags.focus.floating_focused", "on")) !== null) {
             // c) switch succeeded — the float layer is focused, the
             // float stays floating. TERMINATE: Mod-f never un-floats
-            // (no grab — the floating layer is not destroyed; the
-            // grab-and-unfloat register is Mod-x's). Whether the
-            // focused frame below is empty or populated is Mod-x's
-            // concern.
+            // on this branch (the grab register is Mod-x's).
             return;
         }
 
         // g) the switch failed (no float to focus): float the current
         // window — but ONLY in the max layout. ONE lock around the
-        // whole lift (float + place + register + close-vacated + fit):
+        // whole lift (float + place + record + close-vacated + fit):
         // the native geometry machines take no locks of their own.
         const algo = await attrRaw("tags.focus.tiling.focused_frame.algorithm");
         if (algo === "max") {
@@ -64,8 +75,19 @@ export async function floatFocus(): Promise<void> {
                         ",", "attr", `clients.${wid}.fullscreen`, "off",
                         ",", "attr", `clients.${wid}.pseudotile`, "off",
                     );
+                    // Record the PRE-LIFT floating geometry (when the
+                    // window floated before) — the unfloat branch
+                    // reverts to it, so the pseudo-fullscreen lift
+                    // never clobbers the window's remembered float
+                    // size.
+                    const preGeo = (await attrRaw(`clients.${wid}.floating_geometry`)) || "";
+                    if (GEO_RE.test(preGeo)) {
+                        await hc("setenv", `PF_FLOAT_GEO_${wid}`, preGeo);
+                    }
                     await setAttr(`clients.${wid}.floating`, "on");
-                    await placeCenteredIn(wid, "tags.focus.tiling.focused_frame.content_geometry");
+                    // PSEUDO-FULLSCREEN: centered in + fitted to the
+                    // TAG ROOT geometry, NOT the focused frame.
+                    await placeCenteredIn(wid, "tags.focus.tiling.root.content_geometry");
                     // Foreground the float session (the historical
                     // hc_center closing tail).
                     await hc(
@@ -81,7 +103,7 @@ export async function floatFocus(): Promise<void> {
                     if (vcc === "0") {
                         await hc("remove");
                     }
-                    await fitTo(wid, "frame");
+                    await fitTo(wid, "root");
                 } finally {
                     await hc("unlock");
                 }
@@ -91,9 +113,20 @@ export async function floatFocus(): Promise<void> {
         return;
     }
 
-    // h) floating_focused TRUE: a floating window has focus. UNFOCUS
-    // the float layer — floating_focused off, the float PRESERVED
-    // (no un-float: closing out of the floating layer is Mod-x's
-    // register; Mod-f only moves the layer focus).
+    // h) floating_focused TRUE: a floating window has focus. RETURN it
+    // to the tiling layer: un-float the focused window, reverting its
+    // floating size to the pre-lift record (the lift's PF_FLOAT_GEO
+    // env write; no record — nothing reverted), then the
+    // floating_focused off follow-up (hlwm tracks the register on
+    // un-float; the write stays idempotent for the no-focused edge).
+    const orig = await attrRaw("clients.focus.winid");
+    if (orig) {
+        const saved = await savedFloatGeo(orig);
+        if (saved) {
+            await setAttr(`clients.${orig}.floating_geometry`, saved);
+            await hc("unsetenv", `PF_FLOAT_GEO_${orig}`);
+        }
+        await unfloatWid(orig);
+    }
     await hc("attr", "tags.focus.floating_focused", "off");
 }

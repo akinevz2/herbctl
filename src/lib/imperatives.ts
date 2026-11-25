@@ -5,7 +5,7 @@
 // Fail-soft everywhere (the dots wrapper convention): a failed
 // herbstclient call resolves null instead of throwing.
 
-import { attrRaw, attrValue, helper, hc, listClientsByTag } from "./hc.js";
+import { attr, attrRaw, attrValue, helper, hc, listClientsByTag } from "./hc.js";
 
 /**
  * The un-float chain shared by the float machines: fold the
@@ -94,4 +94,157 @@ export async function reload(): Promise<boolean> {
     const themeOk = await helper("reload_theme", ["--force"]);
     const hcOk = await hc("reload") !== null;
     return hcOk && themeOk;
+}
+
+// ── the polyframes window machines (migrated 2026-11) ────────────────
+// The bar's click semantics call these; the machines themselves are
+// WM work and live here. All raw-attr reads (attrRaw) — the same
+// string semantics the ported sources used.
+
+/** The center verb as a detached self-spawn (the runHelper shape the
+ *  polyframes sources used; `herbctl center` owns the geometry). */
+function spawnCenter(args: string[]): void {
+    const self = Bun.which("herbctl") ?? process.execPath;
+    Bun.spawn([self, "center", ...args],
+        { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+}
+
+/**
+ * The DISMISS machine (polyframes' middle click; `herbctl minimize
+ * --dismiss`): a targeted TOGGLE —
+ *   minimized        -> unminimize + float + focus (center-root when
+ *                       it was floating before the minimize)
+ *   tiling, focused  -> minimize
+ *   tiling, unfocused-> minimize + REMOVE the emptied parent frame
+ *                       (last-frame guarded) + hand focus back
+ *   floating         -> minimize
+ */
+export async function dismissWindow(wid: string): Promise<void> {
+    const min = (await attr(`clients.${wid}.minimized`)) === "true";
+    const flt = (await attr(`clients.${wid}.floating`)) === "true";
+
+    if (min) {
+        // Unminimize: restore and center
+        await hc("set_attr", `clients.${wid}.minimized`, "false");
+        await hc("set_attr", `clients.${wid}.floating`, "true");
+        if (flt) spawnCenter(["root"]);
+        await hc("jumpto", wid);
+        return;
+    }
+
+    const active = (await attrRaw("clients.focus.winid")) || "";
+
+    // Tiling and focused: simply minimize
+    if (flt && wid === active) {
+        await hc("set_attr", `clients.${wid}.minimized`, "true");
+        return;
+    }
+
+    // Tiling and NOT focused: remove the parent frame if it empties
+    if (!flt) {
+        const frameCount = Number((await attrRaw("tags.focus.frame_count")) ?? "1");
+        // Last frame: cannot remove — plain minimize
+        if (frameCount <= 1) {
+            await hc("set_attr", `clients.${wid}.minimized`, "true");
+            return;
+        }
+        await hc("jumpto", wid);
+        const newFrameClients = Number(
+            (await attrRaw("tags.focus.curframe_wcount")) ?? "1");
+        await hc("set_attr", `clients.${wid}.minimized`, "true");
+        try {
+            if (newFrameClients <= 1) {
+                await hc("lock");
+                await hc("remove");
+            }
+            if (wid !== active) await hc("jumpto", active);
+        } finally {
+            await hc("unlock");
+        }
+        return;
+    }
+
+    await hc("set_attr", `clients.${wid}.minimized`, "true");
+}
+
+/**
+ * The FLOAT-TOGGLE cycle machine (polyframes' alt click;
+ * `herbctl float --toggle`):
+ *   minimized           -> unminimize into its frame (frame holds
+ *                           others: re-tile; frame empty: stay float,
+ *                           centered at current size)
+ *   floating, unfocused -> focus + raise
+ *   floating, focused   -> minimize
+ *   tiled               -> float + raise
+ */
+export async function floatToggle(wid: string): Promise<void> {
+    await hc("lock");
+    try {
+        const min = (await attr(`clients.${wid}.minimized`)) === "true";
+        const flt = (await attr(`clients.${wid}.floating_effectively`)) === "true";
+        const foc = (await attrRaw("clients.focus.winid")) || "";
+
+        if (min) {
+            const frame = (await attrRaw(`clients.${wid}.parent_frame.index`)) || "";
+            const cc = Number(
+                (await attrRaw(`clients.${wid}.parent_frame.client_count`)) ?? "1");
+            if (frame !== "" && cc > 1) {
+                // frame holds others -> re-tile into it
+                await hc("set_attr", `clients.${wid}.floating`, "false");
+                await hc("set_attr", `clients.${wid}.minimized`, "false");
+                await hc("jumpto", wid);
+                await hc("raise", wid);
+                return;
+            }
+            // empty frame -> stay floating, centered at current size
+            await hc("set_attr", `clients.${wid}.floating`, "true");
+            await hc("set_attr", `clients.${wid}.minimized`, "false");
+            spawnCenter(["--wid", wid]);
+            await hc("jumpto", wid);
+            await hc("raise", wid);
+        } else if (flt && wid !== foc) {
+            await hc("jumpto", wid);
+            await hc("raise", wid);
+        } else if (flt) {
+            await hc("set_attr", `clients.${wid}.minimized`, "true");
+        } else {
+            await hc("set_attr", `clients.${wid}.floating`, "true");
+            await hc("raise", wid);
+        }
+    } finally {
+        await hc("unlock");
+    }
+}
+
+/**
+ * The GROUP-CYCLE focus step (polyframes' scroll cycle core;
+ * `herbctl focus --frame <left|right>`): focus the previous/next
+ * member of the window's (frame, class) group — the attr-tree order,
+ * wraparound. A single-member group is a no-op. The bar's escalation
+ * ladder and switcher branches stay presentation-side.
+ */
+export async function focusFrameStep(
+    wid: string,
+    dir: "left" | "right",
+): Promise<void> {
+    const frame = (await attrRaw(`clients.${wid}.parent_frame.index`)) || "";
+    const cls = (await attrRaw(`clients.${wid}.class`)) || "";
+    const tag = (await attrRaw(`clients.${wid}.tag`)) || "";
+    if (frame === "") return;
+    const wids = await listClientsByTag(tag);
+    const members: string[] = [];
+    for (const w of wids) {
+        if (w === wid) { members.push(w); continue; }
+        const pf = (await attrRaw(`clients.${w}.parent_frame.index`)) || "";
+        if (pf !== frame) continue;
+        const c = (await attrRaw(`clients.${w}.class`)) || "";
+        if (c !== cls) continue;
+        members.push(w);
+    }
+    if (members.length <= 1) return;
+    const pos = members.indexOf(wid);
+    const target = dir === "right"
+        ? members[(pos + 1) % members.length]
+        : members[(pos - 1 + members.length) % members.length];
+    if (target && target !== wid) await hc("jumpto", target);
 }

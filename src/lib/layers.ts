@@ -42,6 +42,33 @@ export const layerOptions = {
     }),
 };
 
+/** The auto-float contract (the geometry verbs' default): a TILED
+ *  focused window is FLOATED FIRST (the old hc_center/hc_resize
+ *  float-first idiom — the geometry math then measures the floating
+ *  theme's decoration), unless --floating-only refuses to promote a
+ *  tiled window. A --wid path keeps its own semantics (no toggling —
+ *  it addresses the window's own frame). */
+export const floatingOnlyOption = {
+    "floating-only": option(z.boolean().default(false), {
+        description:
+            "only ALREADY-floating windows: a tiled focused window is NOT floated (the verb skips instead)",
+        argumentKind: "flag",
+    }),
+};
+
+export async function autoFloatOrSkip(
+    flags: { wid?: string } & Record<string, unknown>,
+): Promise<"proceed" | "skip"> {
+    if (flags.wid !== undefined && flags.wid !== "") return "proceed";
+    const winid = (await hc("attr", "clients.focus.winid"))?.stdout.trim() ?? "";
+    if (winid === "") return "skip";
+    const floating = (await hc("attr", `clients.${winid}.floating`))?.stdout.trim();
+    if (floating === "true") return "proceed";
+    if (flags["floating-only"] === true) return "skip";
+    await setAttr(`clients.${winid}.floating`, "on");
+    return "proceed";
+}
+
 export interface LayerFlags {
     "to-float"?: boolean;
     "to-tiling"?: boolean;

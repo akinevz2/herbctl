@@ -1,22 +1,25 @@
-// src/lib/find.ts — the `find` machine: a needle resolves to a TAG
-// first, else to CLIENT TITLES.
+// src/lib/find.ts — the `find` machine: bare, the GLOBAL WINDOW
+// SELECTOR; with a needle, the needle resolves to a TAG first, else
+// it PRE-FILLS the selector's rofi filter.
 //
+//   herbctl find              the global window selector
 //   herbctl find <string>
 //
+// BARE: every managed window, one rofi entry apiece, carrying the
+// four facts that matter for choosing:
+//   [title] · [tag] · minimized? · floating?
+// (the title leads so typing filters on it). Enter focuses the
+// selected window (jumpto — carries the tag switch), scroll
+// up/down focuses the PREVIOUS/NEXT window in the list and reopens
+// the selector on it, Escape closes.
+//
+// WITH A NEEDLE:
 //   1. a tag named <string> exists → `use` it (one herbstclient call —
 //      the failure IS the miss, the fail-soft contract).
-//   2. otherwise the needle is searched (case-insensitive substring)
-//      in every managed client's title (the attr-tree read through
-//      herbstutil — listClients + the title leaf).
-//      - one match    → `jumpto` it (jumpto carries the tag switch)
-//      - many matches → the rofi window switcher:
-//          Return       focus the selected window, done
-//          scroll up/down  focus the HIGHLIGHTED neighbor and reopen
-//                       the SAME search (same filter, the new index
-//                       pre-selected) — scroll-preview navigation:
-//                       keep scrolling until the right entry, Return
-//                       to finish on it
-//          Escape       done
+//   2. otherwise the FULL entry list opens with the needle as the
+//      rofi filter (pre-typed): rofi's own matching selects the
+//      window — no pre-filtering here, the input is a FILTER, never
+//      a row one would have to type out.
 //
 // The rofi loop relies on the scroll bindings being CUSTOM exits
 // (-kb-custom-1/2 = ScrollUp/ScrollDown, the default ml-* scroll
@@ -25,55 +28,87 @@
 // -selected-row on it. Every reopen re-filters with the original
 // needle, so the search context never drifts.
 
-import { attrValue, hc, listClients } from "./hc.js";
+import { asBool, attrValue, hc, listClients } from "./hc.js";
 import { rofiMenu } from "./rofi.js";
 
 /** Usage line, thrown by the verb (the collapsed-verb convention). */
-export const USAGE = "Usage: herbctl find <string>";
+export const USAGE = "Usage: herbctl find [string]";
 
-/** One switcher entry: what rofi shows, and which wid it resolves to. */
+/** One selector entry: the window's four facts, and what rofi shows. */
 export interface FindEntry {
-    /** The rofi line (title, wid-suffixed when titles collide). */
-    text: string;
     /** The hlwm window id ("0x…"). */
     wid: string;
+    /** The client title. */
+    title: string;
+    /** The tag the window lives on. */
+    tag: string;
+    /** Minimized (hidden) state. */
+    min: boolean;
+    /** Floating state. */
+    floating: boolean;
 }
 
-/** The window ids whose title contains the needle (case-insensitive),
- *  in the attr-tree order — the switcher entries. */
-export async function titleMatches(needle: string): Promise<FindEntry[]> {
-    const lower = needle.toLowerCase();
-    const seen = new Map<string, number>(); // title → occurrence count
-    const wids = await listClients();
-    const found: { title: string; wid: string }[] = [];
-    for (const wid of wids) {
-        const title = await attrValue<string>(`clients.${wid}.title`);
-        if (title === null) continue; // vanished between listing and read
-        if (!title.toLowerCase().includes(lower)) continue;
-        seen.set(title, (seen.get(title) ?? 0) + 1);
-        found.push({ title, wid });
-    }
-    // Duplicate titles are wid-suffixed so every entry resolves
-    // uniquely; singles stay clean.
-    return found.map(({ title, wid }) => ({
+/** The rofi line: title leads (the filter target), then tag, then the
+ *  state markers — the four facts of the selector contract. */
+export function entryText(e: FindEntry): string {
+    const states = [
+        e.tag,
+        ...(e.min ? ["minimized"] : []),
+        ...(e.floating ? ["floating"] : []),
+    ];
+    return [e.title, ...states].join(" · ");
+}
+
+/** Read one window's four facts; null when it vanished mid-scan. */
+async function windowFacts(wid: string): Promise<FindEntry | null> {
+    const [title, tag, min, floating] = await Promise.all([
+        attrValue<string>(`clients.${wid}.title`),
+        attrValue<string>(`clients.${wid}.tag`),
+        attrValue<string>(`clients.${wid}.minimized`),
+        attrValue<string>(`clients.${wid}.floating`),
+    ]);
+    if (title === null) return null;
+    return {
         wid,
-        text: (seen.get(title) ?? 0) > 1 ? `${title} (${wid})` : title,
-    }));
+        title,
+        tag: tag ?? "?",
+        min: asBool(min),
+        floating: asBool(floating),
+    };
 }
 
-/** Resolve a rofi selection back to its wid: an exact entry text, or
- *  the "(0x…)" suffix of a wid-suffixed duplicate. Null when the
- *  selection is typed text with no exact entry (refusal — the loop
- *  just closes; the search string is the interface, not free text). */
+/** Every managed window's facts, in the attr-tree order. */
+export async function allEntries(): Promise<FindEntry[]> {
+    const entries: FindEntry[] = [];
+    for (const wid of await listClients()) {
+        const e = await windowFacts(wid);
+        if (e !== null) entries.push(e);
+    }
+    return entries;
+}
+
+/** Resolve a rofi selection back to its wid: an exact match against
+ *  the RENDERED entry lines (the same rendering the menu showed —
+ *  wid-suffixed when titles collide). Null when the selection is
+ *  typed text with no exact entry (refusal — the loop just closes;
+ *  the search string is the interface, not free text). */
 export function selectionWid(
     selection: string,
     entries: FindEntry[],
 ): string | null {
-    const suffix = selection.match(/^(.*) \((0x[0-9a-fA-F]+)\)$/);
-    if (suffix && entries.some((e) => e.text === selection)) {
-        return suffix[2];
-    }
-    return entries.find((e) => e.text === selection)?.wid ?? null;
+    const idx = entryLines(entries).indexOf(selection);
+    return idx === -1 ? null : entries[idx].wid;
+}
+
+/** Duplicate titles are wid-suffixed so every entry resolves
+ *  uniquely; singles stay clean. */
+export function entryLines(entries: FindEntry[]): string[] {
+    const seen = new Map<string, number>(); // title → occurrence count
+    for (const e of entries) seen.set(e.title, (seen.get(e.title) ?? 0) + 1);
+    return entries.map((e) => {
+        const text = entryText(e);
+        return (seen.get(e.title) ?? 0) > 1 ? `${text} (${e.wid})` : text;
+    });
 }
 
 /** `jumpto` — focus a window, carrying the tag switch. Fail-soft. */
@@ -81,30 +116,20 @@ async function jumpto(wid: string): Promise<void> {
     await hc("jumpto", wid);
 }
 
-/** The full find machine. See the file head. */
-export async function findMachine(needle: string): Promise<void> {
-    if (needle === "") throw new Error(USAGE);
-
-    // 1. the tag shortcut: `use` succeeds exactly when the tag exists
-    //    (and switches to it in the same call).
-    if ((await hc("use", needle)) !== null) return;
-
-    // 2. the title search.
-    const entries = await titleMatches(needle);
-    if (entries.length === 0) return; // nothing anywhere — quietly done
-    if (entries.length === 1) {
-        await jumpto(entries[0].wid);
-        return;
-    }
-
-    // 3. the switcher loop (scroll-preview navigation).
-    const texts = entries.map((e) => e.text);
+/** The switcher loop (scroll-preview navigation) over pre-built
+ *  entries; `filter` pre-types the needle (empty for the bare
+ *  selector). */
+async function selectorLoop(
+    entries: FindEntry[],
+    filter: string,
+): Promise<void> {
+    const texts = entryLines(entries);
     let idx = 0;
     for (;;) {
         const { rc, selection } = await rofiMenu({
             prompt: "find",
             entries: texts,
-            filter: needle,
+            filter,
             selectedRow: idx,
             scroll: "exit",
         });
@@ -123,4 +148,25 @@ export async function findMachine(needle: string): Promise<void> {
         }
         return; // Escape / spawn failure / anything else: done
     }
+}
+
+/** The full find machine. See the file head. */
+export async function findMachine(needle: string): Promise<void> {
+    // BARE: the global window selector — every window, no filter.
+    if (needle === "") {
+        const entries = await allEntries();
+        if (entries.length === 0) return; // nothing managed — quietly done
+        await selectorLoop(entries, "");
+        return;
+    }
+
+    // 1. the tag shortcut: `use` succeeds exactly when the tag exists
+    //    (and switches to it in the same call).
+    if ((await hc("use", needle)) !== null) return;
+
+    // 2. the selector with the needle as the pre-filled rofi filter —
+    //    the FULL list, rofi's own matching does the selecting.
+    const entries = await allEntries();
+    if (entries.length === 0) return; // nothing managed — quietly done
+    await selectorLoop(entries, needle);
 }

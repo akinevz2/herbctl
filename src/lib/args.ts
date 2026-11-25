@@ -45,7 +45,7 @@ export interface ArgSpec {
     validate?: (value: string) => string | undefined;
     /** the parameter names an hlwm OBJECT KIND: the prompt's entries
      *  are indexed LIVE from herbstutil/hc (never free-form) */
-    source?: "tagspaces" | "clients";
+    source?: "tags" | "clients";
     /** the blank-parameter semantics — a FUNCTIONAL FACT, declared:
      *   "current"  blank refers to the CURRENT (focused) object — the
      *              prompt offers it as the first entry and the verb
@@ -93,11 +93,11 @@ export function resolveTails(
 }
 
 /** the CURRENT object per live source — the "blank means the focused
- *  one" resolution (the focused tagspace name / the focused client). */
+ *  one" resolution (the focused tag name / the focused client). */
 export async function currentObject(
     source: NonNullable<ArgSpec["source"]>,
 ): Promise<string | null> {
-    if (source === "tagspaces") {
+    if (source === "tags") {
         const r = await hc("attr", "tags.focus.name");
         return r === null ? null : r.stdout.trim();
     }
@@ -110,11 +110,11 @@ export async function currentObject(
  *  semantics is "current". */
 export async function promptEntries(spec: ArgSpec): Promise<string[]> {
     if (spec.entries) return [...spec.entries];
-    if (spec.source === "tagspaces") {
-        const { listTagspaces } = await import("./allocate.js");
-        const tags = await listTagspaces();
+    if (spec.source === "tags") {
+        const { listTags } = await import("./allocate.js");
+        const tags = await listTags();
         if (spec.blank === "current") {
-            const current = await currentObject("tagspaces");
+            const current = await currentObject("tags");
             if (current) return [`(focused) ${current}`, ...tags.filter((t) => t !== current)];
         }
         return tags;
@@ -133,7 +133,7 @@ export async function entryValue(
     selection: string,
 ): Promise<string | undefined> {
     if (selection.startsWith("(focused) ")) {
-        return (await currentObject(spec.source ?? "tagspaces")) ?? undefined;
+        return (await currentObject(spec.source ?? "tags")) ?? undefined;
     }
     return selection;
 }

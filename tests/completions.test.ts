@@ -6,7 +6,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { enumTokens, getTree, registerCompletions } from "../src/lib/completions";
-import floatCmd from "../src/commands/float.js";
+import centerCmd from "../src/lib/center.js";
 import {
     bashScript,
     fishScript,
@@ -15,8 +15,8 @@ import {
 
 describe("enumTokens", () => {
     test("angle-bracket enums are mode tokens (hyphens included)", () => {
-        expect(enumTokens("close <or-remove|window|tiling|xkill>")).toEqual([
-            "or-remove", "window", "tiling", "xkill",
+        expect(enumTokens("remove <or-remove|xkill>")).toEqual([
+            "or-remove", "xkill",
         ]);
     });
 
@@ -29,7 +29,7 @@ describe("enumTokens", () => {
     test("placeholders are NOT completions", () => {
         expect(enumTokens("find <string> — a tag, else client titles"))
             .toEqual([]);
-        expect(enumTokens("tagspace [name] — enter, allocating when missing"))
+        expect(enumTokens("tag [name] — enter, allocating when missing"))
             .toEqual([]);
     });
 
@@ -42,15 +42,16 @@ describe("enumTokens", () => {
 describe("getTree", () => {
     test("carries name/version and the registered commands", () => {
         // The registry is boot-filled by index.ts; a test registers a
-        // real verb definition the same way index.ts does.
-        registerCompletions([floatCmd as never]);
+        // real verb definition the same way index.ts does (the
+        // reparented top-level geometry verb).
+        registerCompletions([centerCmd as never]);
         const tree = getTree();
         expect(tree.name).toBe("herbctl");
         expect(tree.version).toMatch(/^\d+\.\d+\.\d+$/);
         expect(tree.commands.length).toBeGreaterThan(0);
-        const float = tree.commands.find((c) => c.name === "float");
-        expect(float?.tokens).toContain("yank");
-        expect(float?.flags).toContain("--wid");
+        const center = tree.commands.find((c) => c.name === "center");
+        expect(center?.flags).toContain("--wid");
+        expect(center?.flags).toContain("--floating-only");
     });
 });
 

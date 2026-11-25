@@ -6,7 +6,8 @@ import { spawnSync } from "node:child_process";
 
 export default defineCommand({
     name: "launch" as never,
-    description: "Rofi drun/run app launcher",
+    description:
+        "Rofi drun/run app launcher (the autostart APPLAUNCHER; callers invoke it, it prompts on its own)",
     handler: async ({ positional }) => {
         // the dots spawn env: WAYLAND_DISPLAY stripped (WSLg's socket
         // makes dual-backend rofi abort), DISPLAY defaulted (the WSL2
