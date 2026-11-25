@@ -50,8 +50,8 @@ export interface TerminalOptions {
     noDistract?: boolean;
     /** attach on this tagspace (an hlwm tag; created when missing). */
     tag?: string | null;
-    /** the help-terminal shape: floating at FULL monitor height
-     *  (half the monitor width, horizontally centered) via the
+    /** the help-terminal shape: floating at FULL TAG height
+     *  (half the tag width, horizontally centered) via the
      *  floating_geometry rule consequence. The pager/help surfaces
      *  read better tall than as a corner window. */
     fullHeight?: boolean;
@@ -147,18 +147,22 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
     if (opts.noDistract) rule.push("focus=off");
     if (opts.tag) rule.push(`tag=${opts.tag}`, "focus=off", "switchtag=off");
     if (opts.fullHeight) {
-        // Full monitor height, half width, horizontally centered —
-        // the pager surface (monitor_rect: "x y w h"; fail-soft: no
-        // rect, no geometry, the plain floating rule already applied
-        // by --floating callers)
-        const rect = (await hc("monitor_rect"))?.stdout.trim();
-        const [mx, my, mw, mh] = (rect ?? "").split(/\s+/).map(Number);
-        if (Number.isFinite(mx) && Number.isFinite(mh) && mw > 0) {
-            const w = Math.floor(mw / 2);
-            const x = mx + Math.floor((mw - w) / 2);
+        // FULL TAG height, half width, horizontally centered — the
+        // pager surface. The rectangle is the focused tag's tiling
+        // area (tags.focus.tiling.root.content_geometry), NOT
+        // monitor_rect: the monitor rectangle includes the panel
+        // strips, so the terminal rendered too tall for the tag.
+        // Fail-soft: no geometry, the plain floating rule already
+        // applied by --floating callers.
+        const rect = (await hc("attr", "tags.focus.tiling.root.content_geometry"))?.stdout.trim();
+        const m = /^(\d+)x(\d+)\+(\d+)\+(\d+)$/.exec(rect ?? "");
+        if (m) {
+            const [, gw, gh, gx, gy] = m.map(Number) as [unknown, number, number, number, number];
+            const w = Math.floor(gw / 2);
+            const x = gx + Math.floor((gw - w) / 2);
             rule.push(
                 "floating=on",
-                `floating_geometry=${w}x${mh}+${x}+${my}`,
+                `floating_geometry=${w}x${gh}+${x}+${gy}`,
             );
         } else {
             rule.push("floating=on");

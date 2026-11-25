@@ -143,8 +143,8 @@ export async function rofiMenu(
 /**
  * Run a command line in a floating temporary terminal (the palette's
  * Shift-Return behavior, the help ACTION's pager): the output is the
- * point, and the terminal never disturbs the tiling layout — full
- * monitor height (the help surfaces read better tall). Resolves the
+ * point, and the terminal never disturbs the tiling layout — full tag
+ * height (the help surfaces read better tall). Resolves the
  * terminal's pid (for the tracked help-terminals) or null when the
  * spawn failed.
  */

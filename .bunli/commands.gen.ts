@@ -155,7 +155,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       name: 'run',
       description: 'the command palette',
       options: {
-        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'command palette: extra name prefixes (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":14461,"end":14463,"loc":{"start":{"line":333,"column":50,"index":14461},"end":{"line":333,"column":52,"index":14463}},"elements":[]}}]}, validator: '(val) => true' }
+        'extra': { type: 'z.array.default', required: true, hasDefault: true, default: undefined, description: 'command palette: extra name prefixes (repeatable)', short: 'p', isArray: true, schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"ArrayExpression","start":14503,"end":14505,"loc":{"start":{"line":333,"column":50,"index":14503},"end":{"line":333,"column":52,"index":14505}},"elements":[]}}]}, validator: '(val) => true' }
       },
       path: './src/commands/run'
     },

@@ -28,19 +28,25 @@ import tagspaceCmd from "./commands/tagspace.js";
 import findCmd from "./commands/find.js";
 import completionsCmd from "./commands/completions.js";
 
-// alphabetical: the palette, the completions and --command-tree all
-// derive their order from this array
+// convenience order (NOT alphabetical — see the sort removal below):
+// the palette, the completions and --command-tree all derive their
+// order from this array. Groups, in order:
+//   find / mutate / focus verbs, print-enumerate, add, remove,
+//   uncategorised (nouns) last.
 const COMMANDS = [
-  jump, shift, frame, float, split, close, toggle,
-  rotateTree,
+  // find + mutate/focus — the daily drivers
+  findCmd,
+  jump, shift, move,
+  frame, float, zoomToggle,
+  rotateTree, expand, tile,
+  toggle, tagspaceCmd,
   reload,
-  zoomToggle,
-  tile, spawn, move,
-  expand,
-  openCmd, runCmd,
-  newCmd, addCmd, tagspaceCmd,
-  launchCmd,
-  findCmd, completionsCmd,
+  // print / enumerate
+  openCmd, runCmd, completionsCmd,
+  // add
+  newCmd, addCmd, spawn, split, launchCmd,
+  // remove
+  close,
 ];
 
 // The completion registry (lib/completions) fills ONCE at boot — the
@@ -73,7 +79,10 @@ const MODE_FLAGS: Record<string, Record<string, ModeFlag[]>> = {
     },
 };
 
-COMMANDS.sort((a, b) => String((a as { name: string }).name).localeCompare(String((b as { name: string }).name)));
+// The COMMANDS array above is hand-ordered for convenience (find /
+// mutate-focus → print-enumerate → add → remove → nouns last) — no
+// sort here, every surface (palette, completions, help, --command-tree)
+// renders in that order.
 registerCompletions(COMMANDS, VERB_TAILS, MODE_FLAGS);
 
 const cli = await createCLI({

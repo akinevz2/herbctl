@@ -95,7 +95,7 @@ function notifyLevel(line: string, body: string): void {
     // floods the screen (the pager action carries the full text).
     const escaped = escapeMarkup(body.trim());
     const pager = process.env.PAGER || "less -R";
-    const view = `${line} --help 2>&1 | ${pager}`;
+    const view = `${line} --help --format toon 2>&1 | ${pager}`;
     // The action waiter: dunstify blocks until the button is pressed
     // (printing the action key) or the notification is closed/replaced
     // (printing a close reason) — only the button press opens the
@@ -132,7 +132,7 @@ function helpActionScript(
  *  (the registry summary) with the same help ACTION. The line runs
  *  unquoted shell text by design (it may embed shell words). */
 function submitLine(line: string, helpSummary: string): void {
-    const view = `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`;
+    const view = `${line} --help --format toon 2>&1 | ${process.env.PAGER || "less -R"}`;
     // The failure surface: the failing line, the error excerpt
     // (capped), then the help summary — all assembled shell-side
     // (the exit status exists only there).
@@ -277,7 +277,7 @@ async function commandPalette(): Promise<void> {
                 await runPalette([selection]);
                 return;
             }
-            await runInTerminal(`${selection} --help 2>&1 | ${
+            await runInTerminal(`${selection} --help --format toon 2>&1 | ${
                 process.env.PAGER || "less -R"
             }`);
             return;
@@ -431,7 +431,7 @@ export async function runPalette(initial: string[]): Promise<void> {
                 // in a pager terminal — NON-consuming and
                 // NON-FOCUS-STEALING (the no-distract rule).
                 const pid = await launchTerminal({
-                    command: `${line} --help 2>&1 | ${process.env.PAGER || "less -R"}`,
+                    command: `${line} --help --format toon 2>&1 | ${process.env.PAGER || "less -R"}`,
                     floating: true,
                     noDistract: true,
                     fullHeight: true,
