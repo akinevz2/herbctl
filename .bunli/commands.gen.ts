@@ -27,11 +27,12 @@ import Terminal from '../src/commands/terminal.js'
 import Tile from '../src/commands/tile.js'
 import Track from '../src/commands/track.js'
 import Unfocus from '../src/commands/unfocus.js'
+import Verify from '../src/commands/verify.js'
 import Windows from '../src/commands/windows.js'
 import Yank from '../src/commands/yank.js'
 
 // Narrow list of command names to avoid typeof-cycles in types
-const names = ['add', 'completions', 'find', 'float', 'focus', 'frame', 'hidden', 'jump', 'launch', 'minimize', 'move', 'new', 'once', 'open', 'remove', 'rotate', 'shift', 'split', 'tag', 'terminal', 'tile', 'track', 'unfocus', 'windows', 'yank'] as const
+const names = ['add', 'completions', 'find', 'float', 'focus', 'frame', 'hidden', 'jump', 'launch', 'minimize', 'move', 'new', 'once', 'open', 'remove', 'rotate', 'shift', 'split', 'tag', 'terminal', 'tile', 'track', 'unfocus', 'verify', 'windows', 'yank'] as const
 type GeneratedNames = typeof names[number]
 
 const modules: Record<GeneratedNames, Command<any>> = {
@@ -58,6 +59,7 @@ const modules: Record<GeneratedNames, Command<any>> = {
   'tile': Tile,
   'track': Track,
   'unfocus': Unfocus,
+  'verify': Verify,
   'windows': Windows,
   'yank': Yank
 } as const
@@ -124,7 +126,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'jump': {
       name: 'jump',
-      description: 'jump <south|forward|deck|dedeck|prev|next>',
+      description: 'jump <south|forward|backward|deck|dedeck|prev|next>',
       path: './src/commands/jump'
     },
   'launch': {
@@ -255,6 +257,16 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
       name: 'unfocus',
       description: 'leave the float layer / create the float session',
       path: './src/commands/unfocus'
+    },
+  'verify': {
+      name: 'verify',
+      description: 'release gate: verify every minor since the previous major against recorded observed behaviours',
+      options: {
+        'since': { type: 'z.string.optional', required: false, hasDefault: false, description: 'override the boundary tag (default: the previous major\'s last release)', schema: {"type":"zod","method":"optional","args":[]}, validator: '(val) => true' },
+        'strict': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'also fail minors with NO recorded behaviors', short: 's', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3123,"end":3128,"loc":{"start":{"line":77,"column":43,"index":3123},"end":{"line":77,"column":48,"index":3128}},"value":false}}]}, validator: '(val) => true' },
+        'json': { type: 'z.boolean.default', required: true, hasDefault: true, default: false, description: 'machine-readable report (the orchestration surface)', schema: {"type":"zod","method":"default","args":[{"type":"unknown","raw":{"type":"BooleanLiteral","start":3316,"end":3321,"loc":{"start":{"line":82,"column":41,"index":3316},"end":{"line":82,"column":46,"index":3321}},"value":false}}]}, validator: '(val) => true' }
+      },
+      path: './src/commands/verify'
     },
   'windows': {
       name: 'windows',
