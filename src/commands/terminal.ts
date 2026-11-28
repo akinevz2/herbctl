@@ -28,6 +28,13 @@
 //                  there is NO post-attach machinery
 //   --urgent       the terminal raises the urgent hint (tag marker)
 //   --no-distract  the terminal does NOT take focus on attach
+//   --bind         BIND the user's focus to the terminal post-attach:
+//                  `herbstclient bring` (focus + raise + move to the
+//                  viewed tag) the moment the client attaches — the
+//                  deliberate OVERRIDE of the focus=off the urgent /
+//                  tag rules arm. The urgent-spawn-and-focus shape:
+//                  the window still carries the urgent marker, but
+//                  the user's attention is bound immediately.
 //   --full-height  floating at FULL focused-frame height, centered on
 //                  it (the pager/help-terminal shape)
 //
@@ -63,6 +70,12 @@ export default defineCommand({
             short: "n",
             argumentKind: "flag",
         }),
+        bind: option(z.boolean().default(false), {
+            description:
+                "bind focus post-attach: herbstclient bring (overrides the focus=off of --urgent/--tag)",
+            short: "b",
+            argumentKind: "flag",
+        }),
         "full-height": option(z.boolean().default(false), {
             description:
                 "terminal: floating at FULL frame height, centered on the focused frame (the help-terminal shape)",
@@ -86,7 +99,7 @@ export default defineCommand({
         // command terminals, not the keybind).
         const command = positional.join(" ") || null;
         const machine = flags.floating || flags.urgent || flags["no-distract"]
-            || flags["full-height"] || flags.tag !== undefined
+            || flags["full-height"] || flags.bind || flags.tag !== undefined
             || flags.directory !== undefined || command !== null;
         if (!machine) {
             const r = await hc("spawn", process.env.TERMINAL || "alacritty");
@@ -110,6 +123,7 @@ export default defineCommand({
             urgent: flags.urgent,
             noDistract: flags["no-distract"],
             fullHeight: flags["full-height"],
+            bind: flags.bind,
             tag,
         });
         if (pid === null) process.exit(1);

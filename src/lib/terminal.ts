@@ -26,6 +26,8 @@
 //                  there is NO post-attach machinery
 //   --urgent       the terminal raises the urgent hint (tag marker)
 //   --no-distract  the terminal does NOT take focus on attach
+//   --bind         bind focus post-attach (herbstclient bring —
+//                  overrides the focus=off of --urgent/--tag)
 //
 // The switches install a `rule once` before the spawn, scoped by a
 // class pattern derived from $TERMINAL (a criterion-free once-rule
@@ -130,6 +132,12 @@ export interface TerminalOptions {
      *  read better tall than as a corner window — and the frame
      *  anchor keeps the surface inside the panels. */
     fullHeight?: boolean;
+    /** bind the user's focus to the terminal post-attach: a
+     *  `herbstclient bring` (focus + raise + move to the viewed tag)
+     *  as soon as the client attaches. The deliberate OVERRIDE of
+     *  the focus=off that the urgent/tag rules arm — the urgent
+     *  marker still surfaces, but attention is bound immediately. */
+    bind?: boolean;
 }
 
 /** bash printf %q equivalent (single-quote wrapping is argv-safe). */
@@ -251,6 +259,7 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
         await hc("unlock");
     }
     if (opts.urgent) watchUrgent(before);
+    if (opts.bind && pid !== null) void bindOnAttach(pid);
     if (opts.fullHeight && pid !== null) {
         // the CORRECTOR: hlwm's arrival placement nudges the ruled
         // geometry (a clamp toward the work area that does not
@@ -262,6 +271,24 @@ export async function launchTerminal(opts: TerminalOptions): Promise<number | nu
         void correctFullHeight(pid);
     }
     return pid;
+}
+
+/** Fire-and-forget post-attach BIND: poll briefly for the client
+ *  whose pid is the spawned terminal's, then `herbstclient bring` it
+ *  (focus + raise + move to the viewed tag) — the pid match is the
+ *  precise shape (correctFullHeight's), immune to unrelated attaches
+ *  during the window. Fail-soft: a miss (window closed before it
+ *  attached) leaves focus alone. */
+async function bindOnAttach(pid: number): Promise<void> {
+    for (let i = 0; i < 30; i += 1) {
+        await new Promise((r) => setTimeout(r, 150));
+        for (const w of await listClients()) {
+            if ((await attrValue<number>(`clients.${w}.pid`)) === pid) {
+                await hc("bring", w);
+                return;
+            }
+        }
+    }
 }
 
 /** Fire-and-forget post-attach correction: poll briefly for the

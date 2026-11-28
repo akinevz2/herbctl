@@ -140,7 +140,10 @@ function submitLine(line: string, helpSummary: string): void {
     const script = [
         `err=$(${line} 2>&1); rc=$?`,
         `[ $rc -eq 0 ] && exit 0`,
-        `excerpt=$(printf '%s' "$err" | head -c 500)`,
+        // the excerpt goes into a MARKUP-parsed dunst body — escape it
+        // shell-side (a raw stderr excerpt with <angle|brackets> used
+        // to make dunst drop the whole body with a parse warning)
+        `excerpt=$(printf '%s' "$err" | head -c 500 | sed -e 's/&/\\&amp;/g' -e 's/</\\&lt;/g' -e 's/>/\\&gt;/g')`,
         `body=$(printf 'exit %s — %s\\n\\n%s' "$rc" "$excerpt" ${
             shQuote(escapeMarkup(helpSummary))
         })`,
