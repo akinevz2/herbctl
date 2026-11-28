@@ -44,6 +44,7 @@ import addCmd from "./commands/add.js";
 import launchCmd from "./commands/launch.js";
 import tagCmd from "./commands/tag.js";
 import findCmd from "./commands/find.js";
+import verifyCmd from "./commands/verify.js";
 import completionsCmd from "./commands/completions.js";
 
 // convenience order (NOT alphabetical — see the sort removal below):
@@ -74,6 +75,10 @@ const COMMANDS = [
   trackCmd,
   // remove — remove (the layer machines via flags), xkill, dismiss
   removeCmd, xkill, dismiss,
+  // verify — the release gate (the minor-since-major behavior walk);
+  // source-aware, not a WM verb — nouns-last keeps it out of the
+  // daily-driver group
+  verifyCmd,
 ];
 
 // The completion registry (lib/completions) fills ONCE at boot — the

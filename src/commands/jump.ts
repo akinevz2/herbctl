@@ -2,10 +2,20 @@
 // a direction argument (was: get-south / get-forward / get-deck /
 // get-dedeck as four bare verbs):
 //
-//   herbctl jump <south|forward|deck|dedeck|prev|next>
+//   herbctl jump <south|forward|backward|deck|dedeck|prev|next>
 //
-//   south    the zoom/peek grid ($Mod-s)
-//   forward  leave the float layer, cycle ($Mod-w)
+//   south    the corrected-invariant backward cycle ($Mod-s): cycle
+//            preferred over cycle_frame on a single root child or a
+//            max frame; cycle_frame preferred over cycle otherwise
+//   south    the corrected-invariant backward cycle ($Mod-s): cycle
+//            preferred over cycle_frame on a single root child or a
+//            max frame; cycle_frame preferred over cycle otherwise
+//   forward  the PRIME jump-forward machine ($Mod-w): float pre-step,
+//            intra-frame cycle +1, frame-up focus, cycle_frame last
+//   backward the OVERLOADED explode ($Mod-e): explodeFrame prime on
+//            non-max frames, cycle_frame -1 traversal on max
+//            (the restored herbctl-nav-cycle explode-frame register,
+//            de-exploded: the explode machine moved to south)
 //   deck     count-gated cycling ($Mod-d)
 //   dedeck   count-gated mix ($ModShift-d)
 //   prev     the previous POPULATED tag ($Mod-bracketleft; the
@@ -15,7 +25,7 @@
 //
 // The machines themselves live verbatim in lib/chains.ts — jump is
 // only the dispatch surface. The direction is a DECLARED required
-// tail (the ARGS spec, entries = the six machines): a bare `herbctl
+// tail (the ARGS spec, entries = the seven machines): a bare `herbctl
 // jump` PROMPTS (the themed rofi list) instead of failing — the
 // palette's empty-level submit (open.ts runPalette) expects exactly
 // that; the hand-thrown usage Error here used to escape as the
@@ -27,14 +37,17 @@ import {
     getDeck,
     getForward,
     getSouth,
+    jumpBackward,
     jumpNext,
     jumpPrev,
+    southExplode,
 } from "../lib/chains.js";
 import { ARG_EXIT, type ArgSpec, resolveVerbArgs } from "../lib/args.js";
 
 const MACHINES = {
-    south: { run: getSouth, label: "the zoom/peek grid" },
-    forward: { run: getForward, label: "leave the float layer, cycle" },
+    south: { run: southExplode, label: "single root child / max frame: cycle first; else cycle_frame first" },
+    forward: { run: getForward, label: "contravariant forward cycle (cycle +1 / cycle_frame +1)" },
+    backward: { run: jumpBackward, label: "contravariant backward cycle (cycle -1 / cycle_frame -1)" },
     deck: { run: getDeck, label: "count-gated cycling" },
     dedeck: { run: getDedeck, label: "count-gated mix" },
     prev: { run: jumpPrev, label: "the previous populated tag (empty skipped)" },
@@ -57,7 +70,7 @@ const ARGS: readonly ArgSpec[] = [
 
 export default defineCommand({
     name: "jump" as never,
-    description: "jump <south|forward|deck|dedeck|prev|next>",
+    description: "jump <south|forward|backward|deck|dedeck|prev|next>",
     handler: async ({ positional }) => {
         const args = await resolveVerbArgs("jump", undefined, ARGS, positional);
         if (args === null) process.exit(ARG_EXIT);

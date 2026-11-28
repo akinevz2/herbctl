@@ -1,0 +1,20 @@
+[
+    {
+        "id": "jump-required-tail-prompts",
+        "since": "v1.20.1",
+        "example": "bare `herbctl jump` (the palette's empty-level submit) PROMPTS via the themed rofi list of the machines (south|forward|deck|dedeck|prev|next); refusal fails with `argument direction is required for jump` / exit 2 — never the exit-1 CommandExecutionError JSON that surfaced as the 2026-11-28 dunst error notification",
+        "guard": "tests/rigor/behaviors.test.ts"
+    },
+    {
+        "id": "terminal-bind-focus",
+        "since": "v1.20.1",
+        "example": "`herbctl terminal --urgent --bind` binds the user's focus post-attach: the pid-matched watcher herbstclient-brings the new client (focus + raise + move to the viewed tag), deliberately overriding the focus=off the urgent rule arms",
+        "guard": "tests/rigor/behaviors.test.ts"
+    },
+    {
+        "id": "palette-failure-body-markup-escaped",
+        "since": "v1.20.1",
+        "example": "the palette failure surface (submitLine) markup-escapes the stderr excerpt shell-side before the dunst body — a raw stderr `<enum|tokens>` excerpt never breaks dunst's pango parse (the 'is not a valid name' warning class)",
+        "guard": "tests/rigor/behaviors.test.ts"
+    }
+]

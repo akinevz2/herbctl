@@ -11,7 +11,7 @@
 // command module per verb), via the navCommand factory in
 // src/lib/nav-command.ts.
 
-import { attrValue, hc } from "./hc.js";
+import { attrTree, attrValue, hc } from "./hc.js";
 import { hiddenMenu } from "./hidden.js";
 
 /** $Mod-s (focus.sh) — the zoom/peek grid: urgent jumpto, frame-down
@@ -38,8 +38,12 @@ export async function getSouth(): Promise<void> {
     );
 }
 
-/** $Mod-w (nav.sh): leave the floating layer, then cycle window/frame
- *  upward — focus --level=frame up, cycle_frame. */
+/** $Mod-w (re-adopted 2026-11-28): the PRIME implementation of jump
+ *  forward, verbatim — the layered priority chain: leave the floating
+ *  layer first, then intra-frame cycle +1 when the frame holds >1
+ *  client, then inter-frame navigation (focus --level=frame up), and
+ *  the bare cycle_frame fallback last. Focus-only — never modifies
+ *  the layout (the layout-movers stay on $ModShift-*). */
 export async function getForward(): Promise<void> {
     await hc(
         "chain", ":", "lock", ":", "or",
@@ -53,6 +57,18 @@ export async function getForward(): Promise<void> {
         ",", "cycle_frame",
         ":", "unlock",
     );
+}
+
+/** $Mod-e (2026-11-28): the OVERLOADED explode — explodeFrame's PRIME
+ *  implementation is performed on non-max frames; otherwise frame
+ *  cycling (traversal, cycle_frame -1) is performed. Focus-only. */
+export async function jumpBackward(): Promise<void> {
+    const algorithm = await attrValue("tags.focus.tiling.focused_frame.algorithm");
+    if (algorithm !== "max") {
+        await explodeFrame();
+        return;
+    }
+    await hc("cycle_frame", "-1");
 }
 
 /** $Mod-d (nav.sh): the layout cycler — count-gated cycle_layout mixes
@@ -90,6 +106,45 @@ export async function explodeFrame(): Promise<void> {
         "or", ".",
         "and", ",", "compare", "tags.focus.frame_count", "gt", "1", ",", "cycle_frame", "-1",
         ".", "chain", "!", "split", "explode", "!", "cycle_frame",
+    );
+}
+
+/** $Mod-s (2026-11-28): the corrected invariant of the jump BACKWARD
+ *  machine with the inverted preference — it PREFERS cycle over
+ *  cycle_frame when the layout root has a single child or the focused
+ *  frame's algorithm is "max" (the backward layered machine runs:
+ *  intra-frame cycle -1 first, cycle_frame +1 fallback); with multiple
+ *  root children on a non-max frame it PREFERS cycle_frame over cycle
+ *  (cycle_frame +1 traversal first, cycle -1 fallback). */
+export async function southExplode(): Promise<void> {
+    const root = await attrTree("tags.focus.tiling.root");
+    const children = root ? root.children.length : 1;
+    const algorithm = await attrValue("tags.focus.tiling.focused_frame.algorithm");
+    if (children === 1 || algorithm === "max") {
+        await jumpBackwardLayered();
+        return;
+    }
+    await hc(
+        "or",
+        ",", "and", ".", "compare", "tags.focus.frame_count", "gt", "1", ".", "cycle_frame", "+1",
+        ",", "cycle", "-1",
+    );
+}
+
+/** the backward layered machine (cycle preferred over cycle_frame):
+ *  intra-frame cycle -1 when the frame holds >1 client, the
+ *  cycle_frame +1 fallback at the edge. */
+async function jumpBackwardLayered(): Promise<void> {
+    await hc(
+        "chain", ":", "lock", ":", "or",
+        ",", "and",
+        "!", "compare", "tags.focus.floating_focused", "=", "1",
+        "!", "attr", "tags.focus.floating_focused", "off",
+        ",", "and",
+        "!", "compare", "tags.focus.curframe_wcount", "gt", "1",
+        "!", "cycle", "-1",
+        ",", "cycle_frame", "+1",
+        ":", "unlock",
     );
 }
 
