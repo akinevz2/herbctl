@@ -341,6 +341,76 @@ export async function minimizeToggle(): Promise<void> {
     await hc("attr", "clients.focus.minimized", "toggle");
 }
 
+// ── the tagspace cycler (the hc_tag-cycle reference implementation) ──
+//
+// Ported faithfully from ~/dots/herbstluftwm/.local/bin/hc_tag-cycle:
+// tag cycling that SKIPS EMPTY tags (the plain `use_index ±1
+// --skip-visible` on the brackets walks EVERY tag in order, empty ones
+// included). The walker reads the population/visibility facts from ONE
+// `herbstclient tag_status` read (per-tag char + name, in index order):
+//
+//   .  unoccupied            -> skipped
+//   :  occupied, not visible -> candidate
+//   *  occupied, visible on another monitor -> skipped (keeps the old
+//      --skip-visible semantics: a visible tag is never stolen from
+//      its monitor)
+//   #  focused tag           -> the starting point, never a target
+//   !  urgent tag            -> candidate
+//
+// When no other populated tag exists (or the WM is unreachable) the
+// walker STAYS PUT (the script's exit-0-and-stay).
+
+/** One `herbstclient tag_status` record: the status char plus the tag
+ *  name, in index order. */
+export interface TagStatusEntry {
+    char: string;
+    name: string;
+}
+
+/** `herbstclient tag_status` parsed: one record per tag, index order
+ *  (the script's tab-split — the leading tab and the trailing newline
+ *  are stripped, the FIRST character of each entry is the status
+ *  char). Resolves null when the WM is unreachable (fail-soft). */
+export async function tagStatus(): Promise<TagStatusEntry[] | null> {
+    const r = await hc("tag_status");
+    if (r === null) return null;
+    return r.stdout.trim().split("\t").filter((e) => e !== "").map((e) => ({
+        char: e.charAt(0),
+        name: e.slice(1),
+    }));
+}
+
+/**
+ * Walk the tag ring in the requested direction and land on the next
+ * POPULATED tag (`use <name>`). Resolves the entered tag name, or null
+ * when it stayed put (no other populated tag / WM unreachable).
+ */
+export async function tagCycle(dir: -1 | 1): Promise<string | null> {
+    const entries = await tagStatus();
+    if (entries === null || entries.length === 0) return null;
+    const n = entries.length;
+    const cur = await attrValue<number>("tags.focus.index");
+    if (cur === null) return null;
+    for (let s = 1; s < n; s++) {
+        const i = (((cur + dir * s) % n) + n) % n;
+        const e = entries[i];
+        if (e.char === ":" || e.char === "!") {
+            return (await hc("use", e.name)) !== null ? e.name : null;
+        }
+    }
+    return null; // no populated tag besides the current one — stay
+}
+
+/** $Mod-bracketleft (autostart): the previous populated tag. */
+export async function jumpPrev(): Promise<void> {
+    await tagCycle(-1);
+}
+
+/** $Mod-bracketright (autostart): the next populated tag. */
+export async function jumpNext(): Promise<void> {
+    await tagCycle(1);
+}
+
 /** $ModCtrl-d (autostart): minimize — minimize the focused client; on an
  *  EMPTY focused frame hand off to the mod-g machine (the hidden picker,
  *  lib/hidden.ts: no hidden clients -> the all-but-focused windows

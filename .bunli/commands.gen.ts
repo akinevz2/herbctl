@@ -124,7 +124,7 @@ const metadata: Record<GeneratedNames, GeneratedCommandMeta> = {
     },
   'jump': {
       name: 'jump',
-      description: 'jump <south|forward|deck|dedeck>',
+      description: 'jump <south|forward|deck|dedeck|prev|next>',
       path: './src/commands/jump'
     },
   'launch': {

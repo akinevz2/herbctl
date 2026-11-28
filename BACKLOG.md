@@ -1,5 +1,29 @@
 # herbctl — backlog
 
+## DONE (unreleased) — `jump prev|next`: the tagspace cycler
+
+The hc_tag-cycle reference implementation
+(~/dots/herbstluftwm/.local/bin/hc_tag-cycle) is ported into herbctl
+as two new jump directions:
+
+    herbctl jump prev    # the previous POPULATED tag ($Mod-bracketleft)
+    herbctl jump next    # the next POPULATED tag ($Mod-bracketright)
+
+The walker (lib/chains.ts `tagCycle`) reads ONE `herbstclient
+tag_status` (per-tag char + name, index order) plus
+`tags.focus.index`, walks the ring in the requested direction, and
+lands on the first tag whose status char is `:` (occupied, not
+visible) or `!` (urgent). `.` (unoccupied) and `*` (visible on
+another monitor) are skipped — the old `--skip-visible` semantics;
+the focused tag (`#`) is the starting point, never a target. When no
+other populated tag exists (or the WM is unreachable) the walker
+STAYS PUT (the script's exit-0-and-stay).
+
+The dots side rebinds the brackets to `spawn ~/.local/bin/herbctl
+jump prev|next` and retires the hc_tag-cycle helper (single
+implementation lives in herbctl, the geometry-machine precedent).
+Outcome-level tests: tests/tag-cycle.test.ts (mock herbstclient).
+
 ## DONE v1.20.1 — bare `herbctl` must print help, not open rofi
 
 Since v1.8.0 the bare invocation is the palette shorthand: `src/index.ts`
